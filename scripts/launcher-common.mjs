@@ -195,26 +195,42 @@ export function startRunner(npmScript) {
 export function openBrowser(url) {
   if (process.env.XUGE_NO_OPEN === "1") return;
 
-  let command;
-  let args;
-  if (process.platform === "win32") {
-    command = "powershell.exe";
-    args = ["-NoProfile", "-Command", `Start-Process '${url}'`];
-  } else if (process.platform === "darwin") {
-    command = "open";
-    args = [url];
-  } else {
-    command = "xdg-open";
-    args = [url];
-  }
+  const candidates = process.platform === "win32"
+    ? [
+        ["explorer.exe", [url]],
+        ["cmd.exe", ["/d", "/c", "start", "", url]],
+        ["powershell.exe", ["-NoProfile", "-Command", `Start-Process '${url}'`]]
+      ]
+    : process.platform === "darwin"
+      ? [["open", [url]]]
+      : [["xdg-open", [url]]];
 
-  try {
-    const opener = spawn(command, args, { detached: true, stdio: "ignore" });
-    opener.once("error", () => console.log(`Open ${url} in your browser.`));
-    opener.unref();
-  } catch {
-    console.log(`Open ${url} in your browser.`);
-  }
+  const tryOpen = (index) => {
+    if (index >= candidates.length) {
+      console.log(`Open ${url} in your browser.`);
+      return;
+    }
+
+    const [command, args] = candidates[index];
+    try {
+      const opener = spawn(command, args, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: process.platform === "win32"
+      });
+      opener.once("error", () => tryOpen(index + 1));
+      opener.unref();
+    } catch {
+      tryOpen(index + 1);
+    }
+  };
+
+  tryOpen(0);
+}
+
+export function browserHint(url) {
+  if (process.env.XUGE_NO_OPEN === "1") return;
+  console.log(`If the browser does not open automatically, visit: ${url}`);
 }
 
 export async function recentLog(file, lines = 20) {

@@ -1,6 +1,7 @@
 import {
   apiPort,
   apiUrl,
+  browserHint,
   delay,
   endpointReady,
   ensureDependencies,
@@ -56,6 +57,7 @@ if (existing?.pid && isProcessAlive(existing.pid) && await processMatchesRunner(
   if (await waitUntilReady(existing.pid, existingWebUrl, existingApiUrl)) {
     console.log(`Ready: ${existingWebUrl}`);
     openBrowser(existingWebUrl);
+    browserHint(existingWebUrl);
     process.exit(0);
   }
   fail("The existing launcher-managed process did not become ready. Run the stop command, then try again.");
@@ -75,6 +77,7 @@ if (!apiReady && await portInUse(apiPort)) {
 if (webReady && apiReady) {
   console.log(`Xuge is already running: ${webUrl}`);
   openBrowser(webUrl);
+  browserHint(webUrl);
   process.exit(0);
 }
 
@@ -105,3 +108,4 @@ if (!await waitUntilReady(child.pid)) {
 
 console.log(`Ready: ${webUrl}`);
 openBrowser(webUrl);
+browserHint(webUrl);
