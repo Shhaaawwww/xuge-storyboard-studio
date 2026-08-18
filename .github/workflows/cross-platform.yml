@@ -30,16 +30,41 @@ jobs:
         if: runner.os != 'Windows'
         run: sh -n start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
 
-      - name: Start the complete app
+      - name: Start with the Windows launcher
+        if: runner.os == 'Windows'
         env:
           WEB_PORT: 15173
           PORT: 14317
           XUGE_NO_OPEN: 1
-        run: npm run app:start
+        run: cmd /d /c start-xuge.bat
+
+      - name: Start with the macOS launcher
+        if: runner.os == 'macOS'
+        env:
+          WEB_PORT: 15173
+          PORT: 14317
+          XUGE_NO_OPEN: 1
+        run: ./start-xuge.command
+
+      - name: Start with the Linux launcher
+        if: runner.os == 'Linux'
+        env:
+          WEB_PORT: 15173
+          PORT: 14317
+          XUGE_NO_OPEN: 1
+        run: ./start-xuge.sh
 
       - name: Verify web and API health
         run: node -e "Promise.all([fetch('http://127.0.0.1:15173/'), fetch('http://127.0.0.1:14317/api/health')]).then(async ([web, api]) => { if (!web.ok || !api.ok || !(await api.json()).ok) process.exit(1); console.log('Web and API are healthy'); })"
 
-      - name: Stop the complete app
-        if: always()
-        run: npm run app:stop
+      - name: Stop with the Windows launcher
+        if: always() && runner.os == 'Windows'
+        run: cmd /d /c stop-xuge.bat
+
+      - name: Stop with the macOS launcher
+        if: always() && runner.os == 'macOS'
+        run: ./stop-xuge.command
+
+      - name: Stop with the Linux launcher
+        if: always() && runner.os == 'Linux'
+        run: ./stop-xuge.sh

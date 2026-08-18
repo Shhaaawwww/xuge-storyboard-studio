@@ -44,6 +44,8 @@ Use **Guided mode** to pause after each stage for review and editing, or **Auto 
 
 Install [Node.js](https://nodejs.org/) `20.19+` or `22.12+`, then download or clone this repository.
 
+> **Downloaded a ZIP? Extract the entire archive first.** Do not run a launcher from inside the compressed ZIP folder. On first launch, Xuge installs its JavaScript dependencies and then opens the browser automatically.
+
 ### Platform launchers
 
 | System | Start | Stop |
@@ -54,11 +56,15 @@ Install [Node.js](https://nodejs.org/) `20.19+` or `22.12+`, then download or cl
 
 The shared cross-platform launcher installs dependencies on the first run, checks ports, starts the API and web app in the background, waits for both services to become healthy, and opens the browser. Logs and launcher state stay in the ignored `.runtime/` directory.
 
+The launchers look for Node.js in `PATH` and in common Windows, Homebrew, nvm, fnm, Volta, asdf, and mise locations. If Node.js is missing, the launcher keeps the error visible and opens the official download page.
+
 If macOS or Linux removes executable permissions after downloading a ZIP, run:
 
 ```bash
 chmod +x start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
 ```
+
+If macOS blocks the downloaded launcher, Control-click `start-xuge.command`, choose **Open**, then confirm **Open** once. This authorizes that downloaded script without changing system-wide security settings.
 
 ### Universal command line
 

@@ -44,6 +44,8 @@ Markdown Prompt Pack / JSON Project
 
 首先安装 [Node.js](https://nodejs.org/) `20.19+` 或 `22.12+`，然后下载或克隆本仓库。
 
+> **通过 ZIP 下载时，请先完整解压。**不要直接在压缩包窗口里运行启动器。首次启动时，叙格会自动安装 JavaScript 依赖，然后打开浏览器。
+
 ### 各系统启动器
 
 | 系统 | 启动 | 停止 |
@@ -54,11 +56,15 @@ Markdown Prompt Pack / JSON Project
 
 三个平台共用同一套启动核心：首次运行自动安装依赖、检查端口、在后台启动网页与 API、等待服务健康后打开浏览器。日志和启动状态保存在已被 Git 忽略的 `.runtime/` 目录。
 
+启动器会从系统 `PATH` 以及 Windows、Homebrew、nvm、fnm、Volta、asdf、mise 的常见安装位置寻找 Node.js。如果没有安装 Node.js，错误窗口不会立即消失，并会打开官方下载页面。
+
 如果通过 ZIP 下载后 macOS 或 Linux 丢失了执行权限，请运行：
 
 ```bash
 chmod +x start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
 ```
+
+如果 macOS 阻止打开下载的启动器，请按住 Control 点击 `start-xuge.command`，选择**打开**，再确认一次**打开**。这只会授权该下载脚本，不会修改系统的全局安全设置。
 
 ### 通用命令行
 
