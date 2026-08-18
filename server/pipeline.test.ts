@@ -49,4 +49,24 @@ describe("narrative pipeline", () => {
     expect((proposal.revisedArtifact as typeof bible).ambiguities).toHaveLength(ambiguityCount + 1);
     expect(bible.ambiguities).toHaveLength(ambiguityCount);
   });
+
+  it("keeps demo artifacts in English when the source is English", async () => {
+    const englishInput = {
+      title: "Homecoming",
+      sourceText: "Lin Xia returned to the old family house after ten years away. Lin Xia found a letter beside the silent clock and finally wound it again.",
+      mode: "adapted" as const,
+      panelCount: 4,
+      style: "restrained watercolor comic",
+      lockedFacts: ["The clock initially reads six fifteen"]
+    };
+
+    const result = await runPipeline(englishInput, new DemoProvider());
+
+    expect(result.storyBible.characters[0].name).toBe("Lin Xia");
+    expect(result.storyBible.narrativeVoice).toBe("Third person");
+    expect(result.storyBible.timeline.length).toBeGreaterThan(1);
+    expect(result.adaptation.approach).toContain("core events");
+    expect(result.panels[0].prompt).toContain("no text");
+    expect(result.audit.summary).toContain("storyboard");
+  });
 });

@@ -1,9 +1,11 @@
 import { Bot, Check, ChevronRight, Clipboard, Edit3, Send, Sparkles, X } from "lucide-react";
 import { useState } from "react";
+import { useI18n } from "./i18n";
 import type { AiEditProposal, PipelineRequest, PromptCard } from "./types";
 
 export function ProvenanceBadge({ value }: { value: "SOURCE" | "INFERENCE" | "CREATIVE" }) {
-  const label = { SOURCE: "原文", INFERENCE: "推断", CREATIVE: "创作" }[value];
+  const { t } = useI18n();
+  const label = { SOURCE: t("provenance.source"), INFERENCE: t("provenance.inference"), CREATIVE: t("provenance.creative") }[value];
   return <span className={`provenance provenance-${value.toLowerCase()}`}>{label}</span>;
 }
 
@@ -19,6 +21,7 @@ export function MetricRing({ value, label }: { value: number; label: string }) {
 }
 
 export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (panel: PromptCard) => void }) {
+  const { locale, t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [draft, setDraft] = useState(panel);
@@ -44,7 +47,7 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
           </div>
           <h3>{panel.storyPurpose}</h3>
         </div>
-        <button className="icon-button" onClick={() => setEditing(true)} aria-label="编辑分镜">
+        <button className="icon-button" onClick={() => setEditing(true)} aria-label={t("panel.edit")}>
           <Edit3 size={17} />
         </button>
       </header>
@@ -52,24 +55,24 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
       <div className="source-quote">“{panel.sourceExcerpt}”</div>
 
       <div className="shot-grid">
-        <div><span>镜头</span><strong>{panel.shotSize} · {panel.cameraAngle}</strong></div>
-        <div><span>人物</span><strong>{panel.characters.join("、") || "环境空镜"}</strong></div>
-        <div><span>情绪</span><strong>{panel.emotion}</strong></div>
-        <div><span>地点</span><strong>{panel.location}</strong></div>
+        <div><span>{t("panel.shot")}</span><strong>{panel.shotSize} · {panel.cameraAngle}</strong></div>
+        <div><span>{t("panel.characters")}</span><strong>{panel.characters.join(locale === "zh-CN" ? "、" : ", ") || t("panel.emptyShot")}</strong></div>
+        <div><span>{t("panel.emotion")}</span><strong>{panel.emotion}</strong></div>
+        <div><span>{t("panel.location")}</span><strong>{panel.location}</strong></div>
       </div>
 
       <div className="prompt-block">
         <div className="prompt-label">
           <span><Sparkles size={14} /> T2I Prompt</span>
-          <button onClick={copyPrompt}>{copied ? <Check size={14} /> : <Clipboard size={14} />}{copied ? "已复制" : "复制"}</button>
+          <button onClick={copyPrompt}>{copied ? <Check size={14} /> : <Clipboard size={14} />}{copied ? t("panel.copied") : t("panel.copy")}</button>
         </div>
         <p>{panel.prompt}</p>
       </div>
 
       <details>
-        <summary>连续性与 Negative Prompt <ChevronRight size={15} /></summary>
+        <summary>{t("panel.details")} <ChevronRight size={15} /></summary>
         <div className="detail-content">
-          <strong>连续性约束</strong>
+          <strong>{t("panel.continuity")}</strong>
           <ul>{panel.continuity.map((item) => <li key={item}>{item}</li>)}</ul>
           <strong>Negative Prompt</strong>
           <p>{panel.negativePrompt}</p>
@@ -78,23 +81,23 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
 
       {editing && (
         <div className="modal-backdrop" role="presentation">
-          <div className="modal" role="dialog" aria-modal="true" aria-label="编辑分镜">
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t("panel.edit")}>
             <div className="modal-header">
-              <div><span className="eyebrow">Panel {panel.order}</span><h2>编辑分镜卡</h2></div>
-              <button className="icon-button" onClick={() => { setDraft(panel); setEditing(false); }}><X size={19} /></button>
+              <div><span className="eyebrow">Panel {panel.order}</span><h2>{t("panel.editTitle")}</h2></div>
+              <button className="icon-button" aria-label={t("common.close")} onClick={() => { setDraft(panel); setEditing(false); }}><X size={19} /></button>
             </div>
-            <label>叙事功能<input value={draft.storyPurpose} onChange={(event) => setDraft({ ...draft, storyPurpose: event.target.value })} /></label>
+            <label>{t("panel.purpose")}<input value={draft.storyPurpose} onChange={(event) => setDraft({ ...draft, storyPurpose: event.target.value })} /></label>
             <div className="form-row">
-              <label>景别<input value={draft.shotSize} onChange={(event) => setDraft({ ...draft, shotSize: event.target.value })} /></label>
-              <label>机位<input value={draft.cameraAngle} onChange={(event) => setDraft({ ...draft, cameraAngle: event.target.value })} /></label>
+              <label>{t("panel.shotSize")}<input value={draft.shotSize} onChange={(event) => setDraft({ ...draft, shotSize: event.target.value })} /></label>
+              <label>{t("panel.angle")}<input value={draft.cameraAngle} onChange={(event) => setDraft({ ...draft, cameraAngle: event.target.value })} /></label>
             </div>
-            <label>动作<textarea rows={2} value={draft.action} onChange={(event) => setDraft({ ...draft, action: event.target.value })} /></label>
-            <label>构图<textarea rows={2} value={draft.composition} onChange={(event) => setDraft({ ...draft, composition: event.target.value })} /></label>
+            <label>{t("panel.action")}<textarea rows={2} value={draft.action} onChange={(event) => setDraft({ ...draft, action: event.target.value })} /></label>
+            <label>{t("panel.composition")}<textarea rows={2} value={draft.composition} onChange={(event) => setDraft({ ...draft, composition: event.target.value })} /></label>
             <label>Prompt<textarea rows={6} value={draft.prompt} onChange={(event) => setDraft({ ...draft, prompt: event.target.value })} /></label>
             <label>Negative Prompt<textarea rows={3} value={draft.negativePrompt} onChange={(event) => setDraft({ ...draft, negativePrompt: event.target.value })} /></label>
             <div className="modal-actions">
-              <button className="secondary-button" onClick={() => { setDraft(panel); setEditing(false); }}>取消</button>
-              <button className="primary-button" onClick={save}>保存修改</button>
+              <button className="secondary-button" onClick={() => { setDraft(panel); setEditing(false); }}>{t("common.cancel")}</button>
+              <button className="primary-button" onClick={save}>{t("common.save")}</button>
             </div>
           </div>
         </div>
@@ -114,6 +117,7 @@ export function ArtifactEditor({
   onSave: (value: unknown) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(() => JSON.stringify(value, null, 2));
   const [error, setError] = useState("");
 
@@ -122,23 +126,23 @@ export function ArtifactEditor({
       onSave(JSON.parse(draft));
       onClose();
     } catch {
-      setError("JSON 格式不正确，请检查括号、逗号和引号。");
+      setError(t("editor.invalidJson"));
     }
   };
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal artifact-editor-modal" role="dialog" aria-modal="true" aria-label={`编辑 ${title}`}>
+      <div className="modal artifact-editor-modal" role="dialog" aria-modal="true" aria-label={t("editor.aria", { title })}>
         <div className="modal-header">
-          <div><span className="eyebrow">STRUCTURED EDITOR</span><h2>编辑 {title}</h2></div>
-          <button className="icon-button" onClick={onClose}><X size={19} /></button>
+          <div><span className="eyebrow">STRUCTURED EDITOR</span><h2>{t("editor.title", { title })}</h2></div>
+          <button className="icon-button" aria-label={t("common.close")} onClick={onClose}><X size={19} /></button>
         </div>
-        <p className="editor-help">这是完整的结构化产物。保存上游修改后，所有依赖它的下游阶段都会被标记为需要重新生成。</p>
+        <p className="editor-help">{t("editor.help")}</p>
         <textarea className="json-editor" spellCheck={false} value={draft} onChange={(event) => { setDraft(event.target.value); setError(""); }} />
         {error && <p className="inline-error">{error}</p>}
         <div className="modal-actions">
-          <button className="secondary-button" onClick={onClose}>取消</button>
-          <button className="primary-button" onClick={save}>保存并使下游失效</button>
+          <button className="secondary-button" onClick={onClose}>{t("common.cancel")}</button>
+          <button className="primary-button" onClick={save}>{t("editor.save")}</button>
         </div>
       </div>
     </div>
@@ -162,6 +166,7 @@ export function AiEditAssistant({
   onApply: (artifact: AiEditProposal["revisedArtifact"]) => void;
   onClose: () => void;
 }) {
+  const { locale, t } = useI18n();
   const [instruction, setInstruction] = useState("");
   const [proposal, setProposal] = useState<AiEditProposal | null>(null);
   const [loading, setLoading] = useState(false);
@@ -179,10 +184,10 @@ export function AiEditAssistant({
         body: JSON.stringify({ request, target, instruction, artifact, context })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "AI 编辑建议生成失败");
+      if (!response.ok) throw new Error(locale === "zh-CN" ? data.error || t("error.ai") : t("error.ai"));
       setProposal(data as AiEditProposal);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AI 编辑建议生成失败");
+      setError(reason instanceof Error ? reason.message : t("error.ai"));
     } finally {
       setLoading(false);
     }
@@ -190,20 +195,20 @@ export function AiEditAssistant({
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal ai-editor-modal" role="dialog" aria-modal="true" aria-label={`AI 编辑 ${title}`}>
+      <div className="modal ai-editor-modal" role="dialog" aria-modal="true" aria-label={t("assistant.aria", { title })}>
         <div className="modal-header">
-          <div><span className="eyebrow"><Bot size={14} /> AI EDITOR</span><h2>让 AI 修改 {title}</h2></div>
-          <button className="icon-button" onClick={onClose}><X size={19} /></button>
+          <div><span className="eyebrow"><Bot size={14} /> AI EDITOR</span><h2>{t("assistant.title", { title })}</h2></div>
+          <button className="icon-button" aria-label={t("common.close")} onClick={onClose}><X size={19} /></button>
         </div>
 
         {!proposal && (
           <>
-            <p className="editor-help">用自然语言描述目标。AI 只会提出建议，预览完成前不会修改当前版本。</p>
-            <textarea rows={5} placeholder="例如：林夏不要有明确年龄和服装，把这些设定恢复为待确认信息；同时保留阴雨傍晚和挂钟时间。" value={instruction} onChange={(event) => setInstruction(event.target.value)} />
+            <p className="editor-help">{t("assistant.help")}</p>
+            <textarea rows={5} placeholder={t("assistant.placeholder")} value={instruction} onChange={(event) => setInstruction(event.target.value)} />
             {error && <p className="inline-error">{error}</p>}
             <div className="modal-actions">
-              <button className="secondary-button" onClick={onClose}>取消</button>
-              <button className="primary-button" disabled={loading || instruction.trim().length < 2} onClick={propose}>{loading ? <span className="spinner" /> : <Send size={15} />}{loading ? "正在分析并拟定修改…" : "生成修改建议"}</button>
+              <button className="secondary-button" onClick={onClose}>{t("common.cancel")}</button>
+              <button className="primary-button" disabled={loading || instruction.trim().length < 2} onClick={propose}>{loading ? <span className="spinner" /> : <Send size={15} />}{loading ? t("assistant.loading") : t("assistant.propose")}</button>
             </div>
           </>
         )}
@@ -215,14 +220,14 @@ export function AiEditAssistant({
               {proposal.changes.map((change, index) => (
                 <article key={`${change.field}-${index}`}>
                   <span>{change.field}</span>
-                  <div><del>{change.before || "未设置"}</del><strong>{change.after || "移除"}</strong><small>{change.reason}</small></div>
+                  <div><del>{change.before || t("assistant.unset")}</del><strong>{change.after || t("assistant.remove")}</strong><small>{change.reason}</small></div>
                 </article>
               ))}
-              {!proposal.changes.length && <p>AI 返回了完整修订版本，但没有列出字段级差异。</p>}
+              {!proposal.changes.length && <p>{t("assistant.noDiff")}</p>}
             </div>
             <div className="modal-actions">
-              <button className="secondary-button" onClick={() => setProposal(null)}>修改要求</button>
-              <button className="primary-button" onClick={() => { onApply(proposal.revisedArtifact); onClose(); }}><Check size={15} />确认并应用</button>
+              <button className="secondary-button" onClick={() => setProposal(null)}>{t("assistant.revise")}</button>
+              <button className="primary-button" onClick={() => { onApply(proposal.revisedArtifact); onClose(); }}><Check size={15} />{t("assistant.apply")}</button>
             </div>
           </>
         )}
