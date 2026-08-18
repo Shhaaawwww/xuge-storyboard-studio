@@ -4,18 +4,35 @@
 
 [![Cross-platform CI](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml/badge.svg)](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml)
 
-Turn novels, journals, and memoirs into an editable visual narrative plan and a production-ready prompt pack.
+## Turn messy writing into a coherent visual story.
 
-Xuge is a local-first, open-source pre-production workspace for visual storytelling. It handles the work between prose and image generation: understanding the source, shaping the adaptation, designing the shots, compiling T2I prompts, and checking continuity. Bring the exported prompts to any image model you prefer.
+Xuge is an open-source narrative compiler for rough notes, fragmented memories, journals, memoirs, and unfinished fiction. It turns writing that is hard to follow into an editable visual blueprint: a Story Bible, Adaptation Plan, storyboard, and panel-by-panel T2I prompt pack.
 
-> Xuge does not generate images. It makes the creative decisions before image generation visible, reviewable, and reusable.
+> Start with the mess. End with a story you can draw, direct, or generate.
 
-## Why Xuge
+Xuge does not generate images or final comic layouts. It organizes the story and makes creative decisions before an image model is called, so the exported prompts can work with any T2I tool.
 
-Going directly from a long story to image prompts often produces attractive but disconnected pictures. Xuge introduces a structured creative pipeline so that characters, locations, facts, tone, and visual decisions remain coherent across panels.
+## From fragments to frames
 
-- **Choose the creative distance** — faithful, adapted, or artistic.
-- **Review before committing** — work step by step or run the full pipeline automatically.
+A raw memory rarely arrives as a clean script. It jumps through time, leaves details uncertain, and mixes facts with impressions. Xuge separates those layers before turning them into visual decisions:
+
+```text
+Rough writing          fragments · jumps · missing details
+    ↓
+Story facts            characters · places · timeline · locked facts
+    ↓
+Narrative structure    theme · pacing · adaptation distance
+    ↓
+Visual blueprint       shots · actions · composition · continuity
+    ↓
+Prompt Pack            panel-by-panel prompts for any image model
+```
+
+- **Start with imperfect input** — no polished screenplay required.
+- **Keep the story coherent** — make facts, inferences, and creative additions visible across panels.
+- **Control the creative distance** — stay faithful, adapt for comics, or take an artistic direction.
+- **Keep the author in control** — review, edit, and regenerate each stage instead of accepting a black-box result.
+
 - **Edit every artifact** — Story Bible, Adaptation Plan, storyboard, and prompt cards remain editable.
 - **Regenerate with dependencies** — changing an upstream artifact marks the affected downstream stages for regeneration.
 - **Edit with AI assistance** — describe a change in natural language, review the proposed diff, then decide whether to apply it.
