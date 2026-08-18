@@ -1,4 +1,4 @@
-# Xuge · Storyboard Studio: Turn messy writing into a coherent visual story
+# Storyboard Studio: Turn messy writing into a coherent visual story
 
 [简体中文](./README.zh-CN.md) · English
 
