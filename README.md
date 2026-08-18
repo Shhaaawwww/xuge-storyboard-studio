@@ -2,6 +2,8 @@
 
 [简体中文](./README.zh-CN.md) · English
 
+[![Cross-platform CI](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml/badge.svg)](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml)
+
 Turn novels, journals, and memoirs into an editable visual narrative plan and a production-ready prompt pack.
 
 Xuge is a local-first, open-source pre-production workspace for visual storytelling. It handles the work between prose and image generation: understanding the source, shaping the adaptation, designing the shots, compiling T2I prompts, and checking continuity. Bring the exported prompts to any image model you prefer.
@@ -39,24 +41,34 @@ Use **Guided mode** to pause after each stage for review and editing, or **Auto 
 
 ## Quick start
 
-### Windows launcher
+Install [Node.js](https://nodejs.org/) `20.19+` or `22.12+`, then download or clone this repository.
 
-1. Install [Node.js](https://nodejs.org/) `20.19+` or `22.12+`.
-2. Download or clone this repository.
-3. Double-click `启动叙格.bat`.
+### Platform launchers
 
-The launcher installs dependencies on the first run, starts the API and web app, and opens the browser. Double-click `停止叙格.bat` to stop it.
+| System | Start | Stop |
+| --- | --- | --- |
+| Windows | Double-click `start-xuge.bat` | Double-click `stop-xuge.bat` |
+| macOS | Double-click `start-xuge.command` | Double-click `stop-xuge.command` |
+| Linux | Run `./start-xuge.sh` | Run `./stop-xuge.sh` |
 
-### Command line
+The shared cross-platform launcher installs dependencies on the first run, checks ports, starts the API and web app in the background, waits for both services to become healthy, and opens the browser. Logs and launcher state stay in the ignored `.runtime/` directory.
+
+If macOS or Linux removes executable permissions after downloading a ZIP, run:
+
+```bash
+chmod +x start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
+```
+
+### Universal command line
 
 ```bash
 git clone https://github.com/Shhaaawwww/xuge-storyboard-studio.git
 cd xuge-storyboard-studio
 npm install
-npm run dev
+npm run app:start
 ```
 
-Open [http://localhost:5173](http://localhost:5173). The built-in Demo Provider requires no API key; choose **载入示例 (Load sample)** to explore the complete workflow.
+Stop the background app with `npm run app:stop`. Developers can use `npm run dev` to keep both services attached to the terminal. Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The built-in Demo Provider requires no API key; choose **载入示例 (Load sample)** to explore the complete workflow.
 
 ## Connect a model
 
@@ -100,7 +112,10 @@ npm test         # Run pipeline tests
 ```text
 src/              React workspace and export tools
 server/           Pipeline, prompts, providers, jobs, and settings
-scripts/          Windows launcher scripts
+scripts/          Shared cross-platform launcher core
+*.bat              Windows launchers
+*.command          macOS double-click launchers
+*.sh               macOS/Linux shell launchers
 ```
 
 Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
