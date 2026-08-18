@@ -6,9 +6,18 @@ const modePolicy = {
   artistic: "艺术创作：允许非线性叙事、视觉隐喻和主观镜头；任何新增内容必须标记为 CREATIVE，且不得违反锁定事实。"
 } as const;
 
+const outputLanguageRule = (input: ValidPipelineRequest) => {
+  const latin = input.sourceText.match(/[A-Za-z]/g)?.length || 0;
+  const cjk = input.sourceText.match(/[\u3400-\u9fff]/g)?.length || 0;
+  return latin > cjk * 2
+    ? "所有面向用户的自然语言字段必须使用英语；原文摘录保持原样。"
+    : "所有面向用户的自然语言字段必须使用简体中文；原文摘录保持原样。";
+};
+
 export function storyBiblePrompt(input: ValidPipelineRequest) {
   return `你是视觉叙事项目的 Canon Keeper。只分析原文，不做艺术化改写。
 请从原文提取故事圣经，并严格返回 JSON。
+${outputLanguageRule(input)}
 
 标题：${input.title}
 锁定事实：${input.lockedFacts.join("；") || "无"}
@@ -25,6 +34,7 @@ timeline 每项包含 id,summary,sourceExcerpt,participants。
 export function adaptationPrompt(input: ValidPipelineRequest, bible: unknown) {
   return `你是漫画改编编辑。根据原文和 Story Bible 制定可执行的改编方案。
 改编政策：${modePolicy[input.mode]}
+${outputLanguageRule(input)}
 目标格数：${input.panelCount}
 视觉风格：${input.style}
 
@@ -38,6 +48,7 @@ decisions 每项包含 id,source,decision,reason,provenance；provenance 只能�
 export function storyboardPrompt(input: ValidPipelineRequest, bible: unknown, adaptation: unknown) {
   return `你是分镜导演和 Prompt Compiler。生成恰好 ${input.panelCount} 个连续漫画分镜。
 每格只表达一个主要动作，镜头需要有节奏变化。所有人物、场景和物品必须遵守 Story Bible。
+${outputLanguageRule(input)}
 画面风格：${input.style}
 改编政策：${modePolicy[input.mode]}
 
@@ -52,6 +63,7 @@ negativePrompt 只写需要避免的视觉问题。provenance 是 SOURCE/INFEREN
 
 export function auditPrompt(input: ValidPipelineRequest, bible: unknown, panels: unknown) {
   return `你是严格的漫画制作审核员。审核忠实度、连续性、视觉清晰度和 Prompt 可执行性。
+${outputLanguageRule(input)}
 模式：${input.mode}
 锁定事实：${input.lockedFacts.join("；") || "无"}
 Story Bible：${JSON.stringify(bible)}
@@ -71,6 +83,7 @@ export function aiEditPrompt(
 ) {
   const targetName = { bible: "Story Bible", adaptation: "Adaptation Plan", storyboard: "Storyboard Prompts" }[target];
   return `你是视觉叙事项目的 AI 编辑助手。用户希望修改 ${targetName}。
+${outputLanguageRule(input)}
 你必须提出最小、可解释、可应用的修改，不得擅自改变用户没有要求的事实。
 锁定事实始终优先：${input.lockedFacts.join("；") || "无"}
 

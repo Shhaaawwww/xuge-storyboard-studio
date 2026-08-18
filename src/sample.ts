@@ -13,3 +13,19 @@ export const sampleLockedFacts = [
   "挂钟最初停在六点十五分",
   "故事发生在阴雨傍晚"
 ];
+
+export const sampleStoryEn = `Lin Xia returned to her hometown on a rainy evening after ten years away. The station was much smaller than she remembered. She stood beneath the awning, suddenly unsure which way to go.
+
+She followed the old road by the river to the family house. The courtyard gate was unlocked, and dust covered the door knocker. When Lin Xia pushed the door open, she smelled damp wood mixed with old books.
+
+The clock in the living room had stopped at six fifteen. A yellowed letter rested on the table, addressed in her father's handwriting: For Xia, when you come home.
+
+She did not open it immediately. Instead, she sat beside the window. Rain ran down the glass, and for a moment her reflection overlapped with the person she had been when she left ten years ago.
+
+As darkness approached, she finally opened the letter. It contained only one sentence: “Do not travel so far that you forget where you began.” Lin Xia read it for a long time, then wound the silent clock until it began to move again.`;
+
+export const sampleLockedFactsEn = [
+  "The father does not appear physically in the present-day scenes",
+  "The clock initially reads six fifteen",
+  "The story takes place on a rainy evening"
+];

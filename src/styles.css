@@ -32,6 +32,10 @@ button { color: inherit; }
 .brand strong { font-family: "Noto Serif SC", serif; font-size: 21px; letter-spacing: 2px; }
 .brand span { font-size: 11px; color: #aaa39a; letter-spacing: 1.4px; text-transform: uppercase; }
 .topbar-actions { display: flex; align-items: center; gap: 14px; }
+.language-switch { height: 32px; padding: 3px; display: inline-flex; align-items: center; gap: 2px; border: 1px solid #49443e; border-radius: 8px; background: #25221e; }
+.language-switch button { min-width: 31px; height: 24px; padding: 0 7px; border: 0; border-radius: 5px; color: #999188; background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; }
+.language-switch button:hover { color: #fff; }
+.language-switch button.active { color: #fff; background: var(--accent); }
 .provider-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9b958c; padding: 8px 10px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #777; }
 .provider-status.is-ready .status-dot { background: #70c096; box-shadow: 0 0 0 4px rgba(112,192,150,.12); }
@@ -343,7 +347,8 @@ details[open] summary svg { transform: rotate(90deg); }
 .guide-topbar nav { display: flex; align-items: center; gap: 25px; }
 .guide-topbar nav button { padding: 0; border: 0; color: #b8b1a7; background: transparent; font-size: 11px; cursor: pointer; transition: color .2s; }
 .guide-topbar nav button:hover { color: #fff; }
-.guide-close { justify-self: end; min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #4c4741; border-radius: 8px; color: #eee8de; background: #28241f; font-size: 11px; cursor: pointer; }
+.guide-topbar-actions { justify-self: end; display: flex; align-items: center; gap: 9px; }
+.guide-close { min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #4c4741; border-radius: 8px; color: #eee8de; background: #28241f; font-size: 11px; cursor: pointer; }
 .guide-close:hover { border-color: #777067; background: #332f2a; }
 .guide-scroll { height: calc(100vh - 70px); overflow-y: auto; scroll-behavior: smooth; }
 .guide-hero { min-height: 650px; padding: 82px max(48px, calc((100vw - 1180px) / 2)); display: grid; grid-template-columns: minmax(0, .92fr) minmax(500px, 1.08fr); align-items: center; gap: 72px; background-color: #f7f3eb; background-image: radial-gradient(#d5cdbf .65px, transparent .65px); background-size: 19px 19px; }
@@ -466,7 +471,8 @@ details[open] summary svg { transform: rotate(90deg); }
 .dependency-card small { margin-top: 3px; color: #8b8378; font-size: 8px; }
 .dependency-flow { margin: 18px 0 12px; padding: 13px; display: flex; align-items: center; justify-content: center; gap: 11px; border-radius: 8px; background: #eee9e1; }
 .dependency-flow b { padding: 7px 9px; border-radius: 6px; color: #fff; background: #423d37; font-size: 8px; }
-.dependency-flow b:first-child { background: var(--accent); }
+.dependency-flow > span { display: contents; }
+.dependency-flow > span:first-child b { background: var(--accent); }
 .dependency-flow svg { color: #999186; }
 .dependency-card > p { margin: 0; color: #777066; font-size: 9px; line-height: 1.6; text-align: center; }
 .provenance-guide { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -520,6 +526,7 @@ details[open] summary svg { transform: rotate(90deg); }
 @media (max-width: 640px) {
   .topbar { padding: 0 16px; }
   .topbar-actions { gap: 7px; }
+  .topbar .language-switch button { min-width: 27px; padding: 0 5px; }
   .topbar-guide-button { width: 35px; padding: 0; justify-content: center; }
   .topbar-guide-button { font-size: 0; }
   .brand span, .provider-status { display: none; }
@@ -554,6 +561,7 @@ details[open] summary svg { transform: rotate(90deg); }
   .guide-topbar { padding: 0 14px; }
   .guide-topbar .brand span { display: block; }
   .guide-close { width: 36px; padding: 0; justify-content: center; font-size: 0; }
+  .guide-topbar-actions { gap: 6px; }
   .guide-hero, .guide-section { padding-left: 20px; padding-right: 20px; }
   .guide-hero { padding-top: 45px; gap: 45px; }
   .guide-hero h1 { font-size: 35px; }

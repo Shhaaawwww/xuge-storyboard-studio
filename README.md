@@ -20,6 +20,7 @@ Going directly from a long story to image prompts often produces attractive but 
 - **Regenerate with dependencies** — changing an upstream artifact marks the affected downstream stages for regeneration.
 - **Edit with AI assistance** — describe a change in natural language, review the proposed diff, then decide whether to apply it.
 - **Keep provenance visible** — distinguish source facts, reasonable inferences, and creative additions.
+- **Switch the interface language** — use Xuge in English or Simplified Chinese without changing the language of your story artifacts.
 
 ## Workflow
 
@@ -68,7 +69,7 @@ npm install
 npm run app:start
 ```
 
-Stop the background app with `npm run app:stop`. Developers can use `npm run dev` to keep both services attached to the terminal. Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The built-in Demo Provider requires no API key; choose **载入示例 (Load sample)** to explore the complete workflow.
+Stop the background app with `npm run app:stop`. Developers can use `npm run dev` to keep both services attached to the terminal. Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The built-in Demo Provider requires no API key; choose **Load sample** to explore the complete workflow. Use the language switch in the top bar to change the interface. Generated story artifacts follow the source text language, so changing the interface never rewrites existing creative work.
 
 ## Connect a model
 
@@ -99,7 +100,7 @@ Settings are stored in plain text at `data/settings.json` on your machine. The f
 - Long-form, chapter-by-chapter processing is not yet implemented.
 - Real-model results depend on valid structured JSON output from the selected model.
 - Image generation and final comic layout remain deliberately model-agnostic.
-- The application interface is currently in Simplified Chinese.
+- The interface supports English and Simplified Chinese. Generated artifacts follow the source text language.
 
 ## Development
 
