@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store
+.playwright-cli/
+output/
+data/
+.runtime/
+coverage/
+.vite/
