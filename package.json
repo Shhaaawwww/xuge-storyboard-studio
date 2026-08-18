@@ -4,7 +4,12 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
+    "app:start": "node scripts/start-storyboard.mjs",
+    "app:stop": "node scripts/stop-storyboard.mjs",
     "dev": "concurrently -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "tsx watch server/index.ts",
     "dev:web": "vite",

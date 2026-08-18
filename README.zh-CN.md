@@ -2,6 +2,8 @@
 
 简体中文 · [English](./README.md)
 
+[![跨平台测试](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml/badge.svg)](https://github.com/Shhaaawwww/xuge-storyboard-studio/actions/workflows/cross-platform.yml)
+
 把小说、日记和回忆录转化为可编辑的视觉叙事方案，以及可以直接交给图像模型的 Prompt Pack。
 
 叙格是一套本地优先、开源的视觉叙事前期工作台。它处理文字与图像生成之间最关键的工作：理解原文、建立叙事事实、设计改编方式、拆解分镜、编译 T2I Prompt，并审核忠实度与连续性。最终 Prompt 可以交给任意图像生成模型。
@@ -39,24 +41,34 @@ Markdown Prompt Pack / JSON Project
 
 ## 快速开始
 
-### Windows 双击启动
+首先安装 [Node.js](https://nodejs.org/) `20.19+` 或 `22.12+`，然后下载或克隆本仓库。
 
-1. 安装 [Node.js](https://nodejs.org/) `20.19+` 或 `22.12+`。
-2. 下载或克隆本仓库。
-3. 双击根目录下的 `启动叙格.bat`。
+### 各系统启动器
 
-首次启动会自动安装依赖，随后启动网页和 API，并打开浏览器。需要关闭时，双击 `停止叙格.bat`。
+| 系统 | 启动 | 停止 |
+| --- | --- | --- |
+| Windows | 双击 `start-xuge.bat` | 双击 `stop-xuge.bat` |
+| macOS | 双击 `start-xuge.command` | 双击 `stop-xuge.command` |
+| Linux | 运行 `./start-xuge.sh` | 运行 `./stop-xuge.sh` |
 
-### 命令行启动
+三个平台共用同一套启动核心：首次运行自动安装依赖、检查端口、在后台启动网页与 API、等待服务健康后打开浏览器。日志和启动状态保存在已被 Git 忽略的 `.runtime/` 目录。
+
+如果通过 ZIP 下载后 macOS 或 Linux 丢失了执行权限，请运行：
+
+```bash
+chmod +x start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
+```
+
+### 通用命令行
 
 ```bash
 git clone https://github.com/Shhaaawwww/xuge-storyboard-studio.git
 cd xuge-storyboard-studio
 npm install
-npm run dev
+npm run app:start
 ```
 
-浏览器访问 [http://localhost:5173](http://localhost:5173)。默认的 Demo Provider 不需要 API Key；点击**载入示例**即可体验完整工作流。
+使用 `npm run app:stop` 停止后台服务。开发者可以使用 `npm run dev`，让两个服务保持连接在当前终端。浏览器访问 [http://127.0.0.1:5173](http://127.0.0.1:5173)。默认的 Demo Provider 不需要 API Key；点击**载入示例**即可体验完整工作流。
 
 ## 连接真实模型
 
@@ -99,7 +111,10 @@ npm test         # 运行流水线测试
 ```text
 src/              React 工作台与导出工具
 server/           流水线、提示词、Provider、任务与设置
-scripts/          Windows 启动器脚本
+scripts/          跨平台启动核心
+*.bat              Windows 启动器
+*.command          macOS 双击启动器
+*.sh               macOS/Linux Shell 启动器
 ```
 
 欢迎参与贡献，请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) 与 [SECURITY.md](./SECURITY.md)。

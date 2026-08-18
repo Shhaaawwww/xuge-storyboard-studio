@@ -1,0 +1,45 @@
+name: Cross-platform CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Check POSIX launcher syntax
+        if: runner.os != 'Windows'
+        run: sh -n start-xuge.sh stop-xuge.sh start-xuge.command stop-xuge.command
+
+      - name: Start the complete app
+        env:
+          WEB_PORT: 15173
+          PORT: 14317
+          XUGE_NO_OPEN: 1
+        run: npm run app:start
+
+      - name: Verify web and API health
+        run: node -e "Promise.all([fetch('http://127.0.0.1:15173/'), fetch('http://127.0.0.1:14317/api/health')]).then(async ([web, api]) => { if (!web.ok || !api.ok || !(await api.json()).ok) process.exit(1); console.log('Web and API are healthy'); })"
+
+      - name: Stop the complete app
+        if: always()
+        run: npm run app:stop
