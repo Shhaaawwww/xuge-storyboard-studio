@@ -12,6 +12,53 @@
 
 叙格不生成图片，也不负责最终漫画排版。它负责图像模型调用之前最关键的工作：梳理事实、补出结构、控制创意距离，并把每一步变成可检查、可修改的视觉决策。
 
+## 先看看工作台
+
+<p align="center">
+  <img src="./docs/images/guide-hero.png" alt="叙格创作指南：从一段文字到可以被画出来的叙事" width="960" />
+</p>
+
+<p align="center"><em>先理解故事，再让图像模型动笔。</em></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/workflow-progress.png" alt="显示四个阶段和实时进度的叙事流水线" width="100%" />
+      <strong>进度清晰可见</strong><br />
+      每一步都明确展示，逐步审阅模式可以随时暂停检查。
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/guided-review.png" alt="可编辑改编方案的逐步审阅界面" width="100%" />
+      <strong>先编辑，再继续</strong><br />
+      检查改编方案后，只重新生成受影响的后续阶段。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/prompt-pack.png" alt="工作台中的逐格 T2I Prompt Card" width="100%" />
+      <strong>逐格 Prompt Pack</strong><br />
+      导出可以直接交给任意 T2I 工具的分镜提示词。
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/quality-audit.png" alt="展示忠实度、连续性、视觉清晰度和 Prompt 分数的质量审核" width="100%" />
+      <strong>质量审核</strong><br />
+      忠实度、连续性、视觉清晰度和 Prompt 质量都保持可见。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/ai-editor.png" alt="AI 编辑助手提出 Story Bible 结构化修改建议" width="100%" />
+      <strong>AI 编辑助手</strong><br />
+      用自然语言描述修改，审核结构化建议，确认后再应用。
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/model-settings.png" alt="本地模型 Provider 设置窗口" width="100%" />
+      <strong>连接自己的模型</strong><br />
+      接入 OpenAI Compatible Provider，配置只保存在本机。
+    </td>
+  </tr>
+</table>
+
 ## 从碎片到分镜
 
 真实的回忆很少一开始就是完整剧本：它可能跳跃、缺少细节，还会把事实和感受混在一起。叙格先把这些层次分开，再逐步转化为画面：

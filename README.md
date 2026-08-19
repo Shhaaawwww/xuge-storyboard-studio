@@ -12,6 +12,53 @@ Xuge is an open-source narrative compiler for rough notes, fragmented memories, 
 
 Xuge does not generate images or final comic layouts. It organizes the story and makes creative decisions before an image model is called, so the exported prompts can work with any T2I tool.
 
+## See the workspace in action
+
+<p align="center">
+  <img src="./docs/images/guide-hero.png" alt="Xuge creation guide showing how writing becomes a drawable narrative" width="960" />
+</p>
+
+<p align="center"><em>Understand the source before asking an image model to draw it.</em></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/workflow-progress.png" alt="Visible narrative pipeline with progress and four stages" width="100%" />
+      <strong>Visible pipeline</strong><br />
+      Every stage is explicit, with a pause point in Guided mode.
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/guided-review.png" alt="Guided review screen with an editable adaptation plan" width="100%" />
+      <strong>Edit before you continue</strong><br />
+      Inspect the adaptation plan, then regenerate only the downstream stages.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/prompt-pack.png" alt="Panel-by-panel T2I prompt cards in the storyboard workspace" width="100%" />
+      <strong>Prompt Pack</strong><br />
+      Export panel-by-panel prompts ready for any T2I tool.
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/quality-audit.png" alt="Quality audit with fidelity, continuity, visual clarity, and prompt scores" width="100%" />
+      <strong>Quality audit</strong><br />
+      Keep fidelity, continuity, visual clarity, and prompt quality visible.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/ai-editor.png" alt="AI editor proposing a structured Story Bible change for approval" width="100%" />
+      <strong>AI editing assistant</strong><br />
+      Describe a change, review the structured proposal, and apply it only when it looks right.
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/model-settings.png" alt="Local model provider settings dialog" width="100%" />
+      <strong>Bring your own model</strong><br />
+      Connect an OpenAI-compatible provider while keeping settings local to your machine.
+    </td>
+  </tr>
+</table>
+
 ## From fragments to frames
 
 A raw memory rarely arrives as a clean script. It jumps through time, leaves details uncertain, and mixes facts with impressions. Xuge separates those layers before turning them into visual decisions:
