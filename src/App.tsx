@@ -1,12 +1,12 @@
-import { AlertTriangle, ArrowRight, BookOpen, Bot, Check, ChevronDown, CircleGauge, CircleHelp, Clock3, Download, Edit3, Feather, FileJson, FileText, KeyRound, LockKeyhole, PanelsTopLeft, Play, Plus, RefreshCw, RotateCcw, Save, Settings2, Sparkles, WandSparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Archive, ArrowRight, BookOpen, Bot, Check, ChevronDown, CircleGauge, CircleHelp, Clock3, Download, Edit3, Feather, FileJson, FileText, FolderOpen, HardDrive, KeyRound, LockKeyhole, PanelsTopLeft, Play, Plus, RefreshCw, RotateCcw, Save, Settings2, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEditAssistant, ArtifactEditor, MetricRing, PanelCard, ProvenanceBadge } from "./components";
 import { exportJson, exportMarkdown } from "./export";
 import { Guide } from "./Guide";
 import { LanguageSwitch, translate, useI18n } from "./i18n";
 import { normalizePipelineResult } from "./normalize";
 import { sampleLockedFacts, sampleLockedFactsEn, sampleStory, sampleStoryEn } from "./sample";
-import type { AdaptationPlan, AiEditProposal, ArtifactStage, CreativeMode, PipelineArtifacts, PipelineJob, PipelineRequest, PipelineResult, PipelineStage, PromptCard, ProviderConfig, StoryBible } from "./types";
+import type { AdaptationPlan, AiEditProposal, ArchivedProject, ArchivedProjectSummary, ArtifactStage, CreativeMode, PipelineArtifacts, PipelineJob, PipelineRequest, PipelineResult, PipelineStage, PromptCard, ProviderConfig, StoryBible } from "./types";
 
 type Tab = "bible" | "adaptation" | "storyboard" | "audit";
 
@@ -29,18 +29,88 @@ const initialSettings = {
 const delay = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 const emptyBible: StoryBible = { logline: "", themes: [], narrativeVoice: "", characters: [], locations: [], timeline: [], lockedFacts: [], ambiguities: [] };
-const emptyAdaptation: AdaptationPlan = { approach: "", pacing: "", visualStrategy: "", decisions: [] };
+const emptyAdaptation: AdaptationPlan = {
+  narrativeSpine: {
+    protagonist: "", setup: "", goal: "", obstacle: "", stakes: "", incitingIncident: "",
+    turningPoint: "", resolution: "", centralQuestion: "", causalChain: [], indispensableFacts: []
+  },
+  approach: "", pacing: "", visualStrategy: "", chronologyStrategy: "", sequences: [], decisions: []
+};
 const emptyAudit: PipelineResult["audit"] = {
   score: 0,
   summary: "",
+  coldRead: { passed: false, score: 0, retelling: "", understoodCharacters: [], understoodTimeline: [], unclearPoints: [], missingLinks: [] },
+  autoRevisionApplied: false,
   issues: [],
-  checks: { faithfulness: 0, continuity: 0, visualClarity: 0, promptQuality: 0 }
+  checks: {
+    narrativeComprehension: 0, causalCompleteness: 0, chronologyLegibility: 0, characterClarity: 0,
+    faithfulness: 0, continuity: 0, visualClarity: 0, promptQuality: 0
+  }
 };
+
+const activeJobStorageKey = "xuge.active-pipeline-job";
+
+interface ActiveJobReference {
+  id: string;
+  workflowMode: "auto" | "guided";
+}
+
+function readActiveJob(): ActiveJobReference | null {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(activeJobStorageKey) || "null") as unknown;
+    if (value && typeof value === "object" && "id" in value && typeof value.id === "string") {
+      return {
+        id: value.id,
+        workflowMode: "workflowMode" in value && value.workflowMode === "auto" ? "auto" : "guided"
+      };
+    }
+  } catch {
+    // A malformed browser entry must not prevent the app from opening.
+  }
+  return null;
+}
+
+function writeActiveJob(value: ActiveJobReference | null) {
+  try {
+    if (value) window.localStorage.setItem(activeJobStorageKey, JSON.stringify(value));
+    else window.localStorage.removeItem(activeJobStorageKey);
+  } catch {
+    // Server-side persistence still protects checkpoints when browser storage is unavailable.
+  }
+}
+
+function latestTab(stages: ArtifactStage[]): Tab {
+  return stages.includes("audit")
+    ? "audit"
+    : stages.includes("storyboard")
+      ? "storyboard"
+      : stages.includes("adaptation")
+        ? "adaptation"
+        : "bible";
+}
+
+function resultFromJob(job: PipelineJob, fallback: PipelineResult | null) {
+  if (job.result) return normalizePipelineResult(job.result);
+  const checkpoint = job.stageResult;
+  if (!checkpoint || checkpoint.completedStages.length === 0) return null;
+  const artifacts = checkpoint.artifacts;
+  return normalizePipelineResult({
+    projectId: job.projectId,
+    createdAt: fallback?.createdAt || job.createdAt,
+    request: checkpoint.request,
+    storyBible: artifacts.storyBible || fallback?.storyBible || emptyBible,
+    adaptation: artifacts.adaptation || fallback?.adaptation || emptyAdaptation,
+    panels: artifacts.panels || fallback?.panels || [],
+    audit: artifacts.audit || fallback?.audit || emptyAudit,
+    provider: checkpoint.provider || job.provider
+  });
+}
 
 function App() {
   const { locale, t } = useI18n();
   const [form, setForm] = useState<PipelineRequest>(() => createInitialForm(t("source.defaultStyle")));
   const previousLocale = useRef(locale);
+  const activeJobRecoveryStarted = useRef(false);
   const [factDraft, setFactDraft] = useState("");
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [workflowMode, setWorkflowMode] = useState<"auto" | "guided">("guided");
@@ -51,6 +121,11 @@ function App() {
   const [provider, setProvider] = useState<ProviderConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveProjects, setArchiveProjects] = useState<ArchivedProjectSummary[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [settingsDraft, setSettingsDraft] = useState<Omit<ProviderConfig, "model" | "ready">>(initialSettings);
   const [settingsError, setSettingsError] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
@@ -95,6 +170,28 @@ function App() {
     storyboard: t("revision.storyboard")
   }[revisionStage] : "";
 
+  const refreshArchive = useCallback(async (silent = false) => {
+    if (!silent) setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const response = await fetch("/api/archive");
+      const data = await response.json() as { projects?: ArchivedProjectSummary[]; error?: string };
+      if (!response.ok) throw new Error(data.error || t("archive.readError"));
+      setArchiveProjects(data.projects || []);
+    } catch (reason) {
+      setArchiveError(reason instanceof Error ? reason.message : t("archive.readError"));
+    } finally {
+      if (!silent) setArchiveLoading(false);
+    }
+  }, [t]);
+
+  const formatArchiveDate = (value: string) => new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+
   useEffect(() => {
     const previousStyle = translate(previousLocale.current, "source.defaultStyle");
     setForm((current) => current.style === previousStyle ? { ...current, style: t("source.defaultStyle") } : current);
@@ -107,6 +204,43 @@ function App() {
       setSettingsDraft({ provider: config.provider, baseUrl: config.baseUrl, apiKey: config.apiKey, selectedModel: config.selectedModel });
     }).catch(() => setProvider(null));
   }, []);
+
+  useEffect(() => {
+    void refreshArchive();
+  }, [refreshArchive]);
+
+  useEffect(() => {
+    if (!result || loading) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setArchiveStatus("saving");
+      try {
+        const response = await fetch(`/api/archive/${encodeURIComponent(result.projectId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            result,
+            completedStages,
+            revisionStage,
+            workflowMode
+          })
+        });
+        const data = await response.json().catch(() => ({})) as { error?: string };
+        if (!response.ok) throw new Error(data.error || t("archive.saveError"));
+        setArchiveStatus("saved");
+        await refreshArchive(true);
+      } catch (reason) {
+        if (controller.signal.aborted) return;
+        setArchiveStatus("error");
+        setArchiveError(reason instanceof Error ? reason.message : t("archive.saveError"));
+      }
+    }, 450);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [completedStages, loading, refreshArchive, result, revisionStage, t, workflowMode]);
 
   useEffect(() => {
     if (!loading) return;
@@ -147,6 +281,7 @@ function App() {
     setResult(null);
     setCompletedStages([]);
     setRevisionStage(null);
+    setArchiveStatus("idle");
     setError("");
   };
 
@@ -182,6 +317,117 @@ function App() {
     }
   };
 
+  const openArchive = () => {
+    setArchiveOpen(true);
+    void refreshArchive();
+  };
+
+  const loadArchivedProject = async (projectId: string) => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const response = await fetch(`/api/archive/${encodeURIComponent(projectId)}`);
+      const data = await response.json() as ArchivedProject & { error?: string };
+      if (!response.ok) throw new Error(data.error || t("archive.readError"));
+      const restored = normalizePipelineResult(data.result);
+      setForm(restored.request);
+      setResult(restored);
+      setCompletedStages(data.completedStages);
+      setRevisionStage(data.revisionStage);
+      setWorkflowMode(data.workflowMode);
+      setTab(data.completedStages.includes("audit")
+        ? "audit"
+        : data.completedStages.includes("storyboard")
+          ? "storyboard"
+          : data.completedStages.includes("adaptation")
+            ? "adaptation"
+            : "bible");
+      setArchiveStatus("saved");
+      setArchiveOpen(false);
+      setError("");
+    } catch (reason) {
+      setArchiveError(reason instanceof Error ? reason.message : t("archive.readError"));
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const deleteArchivedProject = async (projectId: string) => {
+    if (!window.confirm(t("archive.deleteConfirm"))) return;
+    setArchiveError("");
+    try {
+      const response = await fetch(`/api/archive/${encodeURIComponent(projectId)}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error || t("archive.deleteError"));
+      }
+      setArchiveProjects((projects) => projects.filter((project) => project.id !== projectId));
+      if (result?.projectId === projectId) {
+        setResult(null);
+        setCompletedStages([]);
+        setRevisionStage(null);
+        setArchiveStatus("idle");
+      }
+    } catch (reason) {
+      setArchiveError(reason instanceof Error ? reason.message : t("archive.deleteError"));
+    }
+  };
+
+  const applyJobCheckpoint = (job: PipelineJob, fallback: PipelineResult | null) => {
+    if (job.stageResult) setForm(job.stageResult.request);
+    const merged = resultFromJob(job, fallback);
+    if (!merged) return false;
+    const stages = job.stageResult?.completedStages || ["bible", "adaptation", "storyboard", "audit"];
+    setResult(merged);
+    setCompletedStages(stages);
+    setRevisionStage(null);
+    setTab(latestTab(stages));
+    return true;
+  };
+
+  const monitorJob = async (jobId: string, fallback: PipelineResult | null) => {
+    let consecutiveConnectionFailures = 0;
+    while (true) {
+      await delay(550);
+      let jobResponse: Response;
+      try {
+        jobResponse = await fetch(`/api/pipeline/jobs/${encodeURIComponent(jobId)}`);
+        consecutiveConnectionFailures = 0;
+      } catch {
+        consecutiveConnectionFailures += 1;
+        if (consecutiveConnectionFailures <= 60) {
+          await delay(1_000);
+          continue;
+        }
+        throw new Error(t("error.readJob"));
+      }
+      const job = await jobResponse.json() as PipelineJob & { error?: string };
+      if (!jobResponse.ok) {
+        writeActiveJob(null);
+        throw new Error(job.error || t("error.jobUnavailable"));
+      }
+      setPipelineJob(job);
+
+      if (job.status === "completed") {
+        writeActiveJob(null);
+        if (!job.stageResult && !job.result) throw new Error(t("error.noArtifact"));
+        setDisplayPercent(100);
+        await delay(450);
+        applyJobCheckpoint(job, fallback);
+        return;
+      }
+
+      if (job.status === "failed" || job.status === "interrupted") {
+        writeActiveJob(null);
+        const recovered = applyJobCheckpoint(job, fallback);
+        if (job.status === "interrupted") {
+          throw new Error(recovered ? t("error.interruptedRecovered") : t("error.interruptedEmpty"));
+        }
+        throw new Error(job.error || t("error.failed"));
+      }
+    }
+  };
+
   const runStages = async (startStage: ArtifactStage, endStage: ArtifactStage, reset = false) => {
     if (loading) return;
     const baseResult = reset ? null : result;
@@ -192,6 +438,7 @@ function App() {
       setResult(null);
       setCompletedStages([]);
       setTab("bible");
+      setArchiveStatus("idle");
     }
     setDisplayPercent(1);
     setElapsedSeconds(0);
@@ -206,47 +453,32 @@ function App() {
       const response = await fetch("/api/pipeline/stage-jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request, startStage, endStage, artifacts })
+        body: JSON.stringify({ projectId: baseResult?.projectId, request, startStage, endStage, artifacts })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(locale === "zh-CN" ? data.error || t("error.createJob") : t("error.createJob"));
-
-      while (true) {
-        await delay(550);
-        const jobResponse = await fetch(`/api/pipeline/jobs/${data.jobId}`);
-        const job = await jobResponse.json() as PipelineJob & { error?: string };
-        if (!jobResponse.ok) throw new Error(locale === "zh-CN" ? job.error || t("error.readJob") : t("error.readJob"));
-        setPipelineJob(job);
-
-        if (job.status === "failed") throw new Error(locale === "zh-CN" ? job.error || t("error.failed") : t("error.failed"));
-        if (job.status === "completed") {
-          if (!job.stageResult) throw new Error(t("error.noArtifact"));
-          setDisplayPercent(100);
-          await delay(450);
-          const stageArtifacts = job.stageResult.artifacts;
-          const merged = normalizePipelineResult({
-            projectId: baseResult?.projectId || crypto.randomUUID(),
-            createdAt: baseResult?.createdAt || new Date().toISOString(),
-            request: job.stageResult.request,
-            storyBible: stageArtifacts.storyBible || baseResult?.storyBible || emptyBible,
-            adaptation: stageArtifacts.adaptation || baseResult?.adaptation || emptyAdaptation,
-            panels: stageArtifacts.panels || baseResult?.panels || [],
-            audit: stageArtifacts.audit || baseResult?.audit || emptyAudit,
-            provider: job.stageResult.provider
-          });
-          setResult(merged);
-          setCompletedStages(job.stageResult.completedStages);
-          setRevisionStage(null);
-          setTab(endStage === "storyboard" ? "storyboard" : endStage);
-          break;
-        }
-      }
+      const data = await response.json() as { jobId?: string; error?: string };
+      if (!response.ok || !data.jobId) throw new Error(data.error || t("error.createJob"));
+      writeActiveJob({ id: data.jobId, workflowMode });
+      await monitorJob(data.jobId, baseResult);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t("error.retry"));
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeJobRecoveryStarted.current) return;
+    activeJobRecoveryStarted.current = true;
+    const activeJob = readActiveJob();
+    if (!activeJob) return;
+    setWorkflowMode(activeJob.workflowMode);
+    setLoading(true);
+    setError("");
+    setDisplayPercent(1);
+    void monitorJob(activeJob.id, null)
+      .catch((reason) => setError(reason instanceof Error ? reason.message : t("error.retry")))
+      .finally(() => setLoading(false));
+  }, []);
 
   const generate = () => {
     if (!canRun) return;
@@ -297,6 +529,9 @@ function App() {
             {provider ? provider.model : t("top.connecting")}
           </div>
           <LanguageSwitch />
+          <button className="topbar-guide-button topbar-archive-button" onClick={openArchive} aria-label={t("top.archive")}>
+            <Archive size={16} />{t("top.archive")}<b>{archiveProjects.length}</b>
+          </button>
           <button className="topbar-guide-button" onClick={() => setGuideOpen(true)}><CircleHelp size={16} />{t("top.guide")}</button>
           <button className="icon-button topbar-icon" aria-label={t("top.settings")} title={t("top.settings")} onClick={() => setSettingsOpen(true)}><Settings2 size={17} /></button>
           {result && completedStages.includes("audit") && (
@@ -319,6 +554,47 @@ function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           onLoadSample={loadSample}
         />
+      )}
+
+      {archiveOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal archive-modal" role="dialog" aria-modal="true" aria-label={t("archive.title")}>
+            <div className="modal-header">
+              <div><span className="eyebrow">LOCAL PROJECT LIBRARY</span><h2>{t("archive.title")}</h2><p>{t("archive.subtitle")}</p></div>
+              <button className="icon-button" aria-label={t("archive.close")} onClick={() => setArchiveOpen(false)}><X size={19} /></button>
+            </div>
+
+            <div className="archive-privacy-note"><HardDrive size={18} /><p><strong>{t("archive.local")}</strong><span>{t("archive.localDescription")}</span></p></div>
+            {archiveError && <div className="error-banner"><AlertTriangle size={17} />{archiveError}</div>}
+
+            {archiveLoading ? (
+              <div className="archive-loading"><span className="spinner" />{t("archive.loading")}</div>
+            ) : archiveProjects.length ? (
+              <div className="archive-list">
+                {archiveProjects.map((project) => (
+                  <article className="archive-card" key={project.id}>
+                    <div className="archive-card-icon"><FolderOpen size={20} /></div>
+                    <div className="archive-card-copy">
+                      <h3>{project.title}</h3>
+                      <p>{t("archive.updated", { time: formatArchiveDate(project.updatedAt) })}</p>
+                      <div>
+                        <span>{t("archive.stageProgress", { count: project.completedStages.length })}</span>
+                        <span>{t("archive.panelCount", { count: project.panelCount || project.requestedPanelCount })}</span>
+                        <span>{project.auditScore === null ? t("archive.noAudit") : t("archive.auditScore", { score: project.auditScore })}</span>
+                      </div>
+                    </div>
+                    <div className="archive-card-actions">
+                      <button className="primary-button" onClick={() => void loadArchivedProject(project.id)}><FolderOpen size={15} />{t("archive.open")}</button>
+                      <button className="archive-delete-button" aria-label={`${t("archive.delete")} ${project.title}`} title={t("archive.delete")} onClick={() => void deleteArchivedProject(project.id)}><Trash2 size={16} /></button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="archive-empty"><Archive size={34} /><h3>{t("archive.empty")}</h3><p>{t("archive.emptyDescription")}</p></div>
+            )}
+          </div>
+        </div>
       )}
 
       {settingsOpen && (
@@ -397,7 +673,7 @@ function App() {
           </section>
 
           <div className="two-columns">
-            <label className="field-label">{t("source.panelCount")}<div className="range-row"><input type="range" min="4" max="24" value={form.panelCount} onChange={(event) => setForm({ ...form, panelCount: Number(event.target.value) })} /><strong>{form.panelCount}</strong></div></label>
+            <label className="field-label">{t("source.panelCount")}<div className="range-row"><input type="range" min="4" max="48" value={form.panelCount} onChange={(event) => setForm({ ...form, panelCount: Number(event.target.value) })} /><strong>{form.panelCount}</strong></div></label>
             <label className="field-label">{t("source.visualStyle")}<input value={form.style} onChange={(event) => setForm({ ...form, style: event.target.value })} /></label>
           </div>
 
@@ -491,8 +767,13 @@ function App() {
           {result && (
             <>
               <div className="result-header">
-                <div><span className="eyebrow">{completedStages.includes("audit") ? t("result.panels", { count: result.panels.length }) : t("result.progress", { count: completedStages.length })}</span><h2>{result.request.title}</h2><p>{result.storyBible.logline}</p></div>
-                <button className="icon-button" aria-label={t("result.restart")} title={t("result.restart")} onClick={() => { setResult(null); setCompletedStages([]); setRevisionStage(null); setForm(createInitialForm(t("source.defaultStyle"))); }}><RotateCcw size={18} /></button>
+                <div>
+                  <span className="eyebrow">{completedStages.includes("audit") ? t("result.panels", { count: result.panels.length }) : t("result.progress", { count: completedStages.length })}</span>
+                  <h2>{result.request.title}</h2>
+                  <p>{result.storyBible.logline}</p>
+                  {archiveStatus !== "idle" && <span className={`archive-save-status is-${archiveStatus}`}>{archiveStatus === "error" ? <AlertTriangle size={13} /> : <HardDrive size={13} />}{archiveStatus === "saving" ? t("archive.saving") : archiveStatus === "saved" ? t("archive.saved") : t("archive.saveError")}</span>}
+                </div>
+                <button className="icon-button" aria-label={t("result.restart")} title={t("result.restart")} onClick={() => { setResult(null); setCompletedStages([]); setRevisionStage(null); setArchiveStatus("idle"); setForm(createInitialForm(t("source.defaultStyle"))); }}><RotateCcw size={18} /></button>
               </div>
 
               <nav className="tabs">
@@ -535,6 +816,22 @@ function App() {
                     <div className="stage-toolbar"><div><span className="stage-kicker">02 · ADAPTATION LAYER</span><strong>{t("adaptation.toolbarTitle")}</strong><small>{t("adaptation.toolbarHelp")}</small></div><div><button className="secondary-button" onClick={() => setAiTarget("adaptation")}><Bot size={15} />{t("toolbar.ai")}</button><button className="secondary-button" onClick={() => setEditingArtifact("adaptation")}><Edit3 size={15} />{t("toolbar.manual")}</button></div></div>
                     <div className="adaptation-layout">
                       <section className="strategy-hero"><span className="eyebrow">ADAPTATION DIRECTION</span><h3>{result.adaptation.approach}</h3><div><p><strong>{t("adaptation.pacing")}</strong>{result.adaptation.pacing}</p><p><strong>{t("adaptation.visual")}</strong>{result.adaptation.visualStrategy}</p></div></section>
+                      <section className="content-card narrative-spine-card">
+                        <div className="card-heading"><h3>{t("adaptation.spine")}</h3><span>{t("adaptation.readabilityFirst")}</span></div>
+                        <p className="spine-question">{result.adaptation.narrativeSpine.centralQuestion}</p>
+                        <div className="spine-grid">
+                          <div><span>{t("adaptation.protagonist")}</span><strong>{result.adaptation.narrativeSpine.protagonist}</strong></div>
+                          <div><span>{t("adaptation.goal")}</span><strong>{result.adaptation.narrativeSpine.goal}</strong></div>
+                          <div><span>{t("adaptation.obstacle")}</span><strong>{result.adaptation.narrativeSpine.obstacle}</strong></div>
+                          <div><span>{t("adaptation.resolution")}</span><strong>{result.adaptation.narrativeSpine.resolution}</strong></div>
+                        </div>
+                        <div className="causal-chain"><strong>{t("adaptation.causalChain")}</strong>{result.adaptation.narrativeSpine.causalChain.map((link, index) => <p key={String(index) + link}><span>{index + 1}</span>{link}</p>)}</div>
+                      </section>
+                      <section className="sequence-plan">
+                        <div className="card-heading"><h3>{t("adaptation.sequences")}</h3><span>{result.adaptation.sequences.length}</span></div>
+                        <p className="chronology-note">{result.adaptation.chronologyStrategy}</p>
+                        <div className="sequence-list">{result.adaptation.sequences.map((sequence) => <article key={sequence.id}><div><strong>{sequence.title}</strong><span>{t("adaptation.panelBudget", { count: sequence.panelBudget })}</span></div><p>{sequence.purpose}</p><small>{[sequence.time, sequence.location, sequence.transitionIn].filter(Boolean).join(" · ")}</small></article>)}</div>
+                      </section>
                       <section className="decision-list">{result.adaptation.decisions.map((decision, index) => <article key={decision.id}><div className="decision-index">{String(index + 1).padStart(2, "0")}</div><div><div className="decision-meta"><ProvenanceBadge value={decision.provenance} /><span>“{decision.source}”</span></div><h4>{decision.decision}</h4><p>{decision.reason}</p></div></article>)}</section>
                     </div>
                   </>
@@ -552,6 +849,13 @@ function App() {
                     <div className="stage-toolbar"><div><span className="stage-kicker">04 · QUALITY GATE</span><strong>{t("audit.toolbarTitle")}</strong><small>{t("audit.toolbarHelp")}</small></div><button className="secondary-button" onClick={() => void runStages("audit", "audit")}><RefreshCw size={15} />{t("audit.rerun")}</button></div>
                     <div className="audit-layout">
                       <section className="audit-summary"><div className="score-block"><strong>{result.audit.score}</strong><span>/100</span></div><div><span className="eyebrow">QUALITY REPORT</span><h3>{result.audit.summary}</h3></div></section>
+                      {result.audit.autoRevisionApplied && <div className="auto-revision-note"><RefreshCw size={17} /><span>{t("audit.autoRevision")}</span></div>}
+                      <section className={result.audit.coldRead.passed ? "cold-read-card is-passed" : "cold-read-card is-failed"}>
+                        <div className="cold-read-heading"><div><span className="eyebrow">{t("audit.coldRead")}</span><h3>{result.audit.coldRead.passed ? t("audit.coldReadPassed") : t("audit.coldReadFailed")}</h3></div><strong>{result.audit.coldRead.score}</strong></div>
+                        <p>{result.audit.coldRead.retelling || t("audit.noRetelling")}</p>
+                        {(result.audit.coldRead.unclearPoints.length > 0 || result.audit.coldRead.missingLinks.length > 0) && <ul>{[...result.audit.coldRead.missingLinks, ...result.audit.coldRead.unclearPoints].map((item) => <li key={item}>{item}</li>)}</ul>}
+                      </section>
+                      <section className="metric-row narrative-metrics"><MetricRing label={t("audit.comprehension")} value={result.audit.checks.narrativeComprehension} /><MetricRing label={t("audit.causality")} value={result.audit.checks.causalCompleteness} /><MetricRing label={t("audit.chronology")} value={result.audit.checks.chronologyLegibility} /><MetricRing label={t("audit.characters")} value={result.audit.checks.characterClarity} /></section>
                       <section className="metric-row"><MetricRing label={t("audit.faithfulness")} value={result.audit.checks.faithfulness} /><MetricRing label={t("audit.continuity")} value={result.audit.checks.continuity} /><MetricRing label={t("audit.visualClarity")} value={result.audit.checks.visualClarity} /><MetricRing label="Prompt" value={result.audit.checks.promptQuality} /></section>
                       <section className="content-card"><div className="card-heading"><h3>{t("audit.issues")}</h3><span>{result.audit.issues.length}</span></div>{result.audit.issues.length ? <div className="issue-list">{result.audit.issues.map((issue) => <article key={issue.id}><span className={`severity severity-${issue.severity.toLowerCase()}`}>{issue.severity}</span><div><strong>{issue.target}</strong><p>{issue.message}</p><small>{t("audit.suggestion", { suggestion: issue.suggestion })}</small></div></article>)}</div> : <div className="all-clear"><Check size={24} /><div><strong>{t("audit.clear")}</strong><p>{t("audit.clearDescription")}</p></div></div>}</section>
                     </div>

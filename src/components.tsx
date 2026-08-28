@@ -47,10 +47,24 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
           </div>
           <h3>{panel.storyPurpose}</h3>
         </div>
-        <button className="icon-button" onClick={() => setEditing(true)} aria-label={t("panel.edit")}>
+        <button className="icon-button" onClick={() => { setDraft(panel); setEditing(true); }} aria-label={t("panel.edit")}>
           <Edit3 size={17} />
         </button>
       </header>
+
+      <div className="panel-context-row">
+        <span>{panel.sequenceTitle}</span>
+        {panel.timeCard && <span>{panel.timeCard}</span>}
+        {panel.locationCard && <span>{panel.locationCard}</span>}
+      </div>
+      {(panel.transitionCaption || panel.narration || panel.dialogue) && (
+        <div className="reader-script">
+          <strong>{t("panel.readerLayer")}</strong>
+          {panel.transitionCaption && <p><span>{t("panel.transition")}</span>{panel.transitionCaption}</p>}
+          {panel.narration && <p><span>{t("panel.narration")}</span>{panel.narration}</p>}
+          {panel.dialogue && <p><span>{t("panel.dialogue")}</span>{panel.dialogue}</p>}
+        </div>
+      )}
 
       <div className="source-quote">“{panel.sourceExcerpt}”</div>
 
@@ -72,6 +86,9 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
       <details>
         <summary>{t("panel.details")} <ChevronRight size={15} /></summary>
         <div className="detail-content">
+          <strong>{t("panel.storyLogic")}</strong>
+          <p>{t("panel.cause")}: {panel.causeFromPrevious || t("panel.opening")}</p>
+          <p>{t("panel.readerLearns")}: {panel.readerLearns}</p>
           <strong>{t("panel.continuity")}</strong>
           <ul>{panel.continuity.map((item) => <li key={item}>{item}</li>)}</ul>
           <strong>Negative Prompt</strong>
@@ -87,6 +104,20 @@ export function PanelCard({ panel, onChange }: { panel: PromptCard; onChange: (p
               <button className="icon-button" aria-label={t("common.close")} onClick={() => { setDraft(panel); setEditing(false); }}><X size={19} /></button>
             </div>
             <label>{t("panel.purpose")}<input value={draft.storyPurpose} onChange={(event) => setDraft({ ...draft, storyPurpose: event.target.value })} /></label>
+            <div className="form-row">
+              <label>{t("panel.sequence")}<input value={draft.sequenceTitle} onChange={(event) => setDraft({ ...draft, sequenceTitle: event.target.value })} /></label>
+              <label>{t("panel.timeCard")}<input value={draft.timeCard} onChange={(event) => setDraft({ ...draft, timeCard: event.target.value })} /></label>
+            </div>
+            <div className="form-row">
+              <label>{t("panel.locationCard")}<input value={draft.locationCard} onChange={(event) => setDraft({ ...draft, locationCard: event.target.value })} /></label>
+              <label>{t("panel.transition")}<input value={draft.transitionCaption} onChange={(event) => setDraft({ ...draft, transitionCaption: event.target.value })} /></label>
+            </div>
+            <label>{t("panel.cause")}<textarea rows={2} value={draft.causeFromPrevious} onChange={(event) => setDraft({ ...draft, causeFromPrevious: event.target.value })} /></label>
+            <label>{t("panel.readerLearns")}<textarea rows={2} value={draft.readerLearns} onChange={(event) => setDraft({ ...draft, readerLearns: event.target.value })} /></label>
+            <div className="form-row">
+              <label>{t("panel.narration")}<textarea rows={3} value={draft.narration} onChange={(event) => setDraft({ ...draft, narration: event.target.value })} /></label>
+              <label>{t("panel.dialogue")}<textarea rows={3} value={draft.dialogue} onChange={(event) => setDraft({ ...draft, dialogue: event.target.value })} /></label>
+            </div>
             <div className="form-row">
               <label>{t("panel.shotSize")}<input value={draft.shotSize} onChange={(event) => setDraft({ ...draft, shotSize: event.target.value })} /></label>
               <label>{t("panel.angle")}<input value={draft.cameraAngle} onChange={(event) => setDraft({ ...draft, cameraAngle: event.target.value })} /></label>

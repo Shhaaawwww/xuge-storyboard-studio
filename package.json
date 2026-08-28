@@ -1,6 +1,6 @@
 {
   "name": "storyboard-studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -10,6 +10,10 @@
   "scripts": {
     "app:start": "node scripts/start-storyboard.mjs",
     "app:stop": "node scripts/stop-storyboard.mjs",
+    "serve": "npm run build && concurrently -n api,web -c magenta,cyan \"npm:start\" \"npm:preview\"",
+    "serve:api": "npm start",
+    "serve:web": "npm run build && npm run preview",
+    "preview": "vite preview",
     "dev": "concurrently -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "tsx watch server/index.ts",
     "dev:web": "vite",

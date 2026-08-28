@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { projectRoot } from "./launcher-common.mjs";
 
-const npmScript = process.argv[2] || "dev";
+const npmScript = process.argv[2] || "serve";
 const child = process.platform === "win32"
   ? spawn(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", `npm run ${npmScript}`], {
       cwd: projectRoot,

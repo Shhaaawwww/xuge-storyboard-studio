@@ -13,5 +13,13 @@ export default defineConfig({
     proxy: {
       "/api": `http://localhost:${apiPort}`
     }
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: webPort,
+    strictPort: true,
+    proxy: {
+      "/api": `http://localhost:${apiPort}`
+    }
   }
 });

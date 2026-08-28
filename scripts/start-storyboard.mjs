@@ -81,7 +81,7 @@ if (webReady && apiReady) {
   process.exit(0);
 }
 
-const npmScript = !webReady && !apiReady ? "dev" : !webReady ? "dev:web" : "dev:api";
+const npmScript = !webReady && !apiReady ? "serve" : !webReady ? "serve:web" : "serve:api";
 await resetLogs();
 const child = await startRunner(npmScript);
 if (!child.pid) fail("The launcher could not create the background process.");

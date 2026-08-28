@@ -6,11 +6,11 @@
 
 ## Turn messy writing into a coherent visual story.
 
-Xuge is an open-source narrative compiler for rough notes, fragmented memories, journals, memoirs, and unfinished fiction. It turns writing that is hard to follow into an editable visual blueprint: a Story Bible, Adaptation Plan, storyboard, and panel-by-panel T2I prompt pack.
+Xuge is an open-source narrative compiler for rough notes, fragmented memories, journals, memoirs, and unfinished fiction. It turns writing that is hard to follow into an editable visual blueprint: a Story Bible, Narrative Spine, scene plan, storyboard, reader-visible script, and panel-by-panel T2I prompt pack.
 
 > Start with the mess. End with a story you can draw, direct, or generate.
 
-Xuge does not generate images or final comic layouts. It organizes the story and makes creative decisions before an image model is called, so the exported prompts can work with any T2I tool.
+Xuge does not generate images or final comic layouts. It makes the story understandable before it makes the story artistic, then exports prompts that can work with any T2I tool.
 
 ## See the workspace in action
 
@@ -42,7 +42,7 @@ Xuge does not generate images or final comic layouts. It organizes the story and
     <td width="50%" valign="top">
       <img src="./docs/images/quality-audit.png" alt="Quality audit with fidelity, continuity, visual clarity, and prompt scores" width="100%" />
       <strong>Quality audit</strong><br />
-      Keep fidelity, continuity, visual clarity, and prompt quality visible.
+      A zero-context reader retells the visible story before fidelity, continuity, and prompt quality receive a score.
     </td>
   </tr>
   <tr>
@@ -68,15 +68,16 @@ Rough writing          fragments · jumps · missing details
     ↓
 Story facts            characters · places · timeline · locked facts
     ↓
-Narrative structure    theme · pacing · adaptation distance
+Narrative spine        protagonist · goal · obstacle · causality · resolution
     ↓
-Visual blueprint       shots · actions · composition · continuity
+Visual blueprint       scenes · transitions · reader text · shots · continuity
     ↓
 Prompt Pack            panel-by-panel prompts for any image model
 ```
 
 - **Start with imperfect input** — no polished screenplay required.
-- **Keep the story coherent** — make facts, inferences, and creative additions visible across panels.
+- **Comprehension before artistry** — preserve the premise, causal chain, identities, time jumps, and ending before adding metaphor or visual flourish.
+- **Audit what the reader sees** — a blind reviewer receives no source text, Story Bible, or hidden production notes; if it cannot retell the story, the pack cannot receive a passing score.
 - **Control the creative distance** — stay faithful, adapt for comics, or take an artistic direction.
 - **Keep the author in control** — review, edit, and regenerate each stage instead of accepting a black-box result.
 
@@ -84,6 +85,7 @@ Prompt Pack            panel-by-panel prompts for any image model
 - **Regenerate with dependencies** — changing an upstream artifact marks the affected downstream stages for regeneration.
 - **Edit with AI assistance** — describe a change in natural language, review the proposed diff, then decide whether to apply it.
 - **Keep provenance visible** — distinguish source facts, reasonable inferences, and creative additions.
+- **Resume after a refresh** — generated and edited projects are automatically saved to a local project library.
 - **Switch the interface language** — use Xuge in English or Simplified Chinese without changing the language of your story artifacts.
 
 ## Workflow
@@ -93,11 +95,11 @@ Source text
     ↓
 Story Bible          characters · locations · timeline · locked facts
     ↓
-Adaptation Plan      theme · structure · pacing · creative decisions
+Adaptation Plan      narrative spine · causal chain · sequence and panel budget
     ↓
-Storyboard & Prompts shots · composition · dialogue · T2I prompt cards
+Storyboard & Prompts transitions · reader text · shots · self-contained T2I prompts
     ↓
-Quality Audit        fidelity · continuity · visual clarity · prompt quality
+Quality Audit        cold-read comprehension · causality · chronology · fidelity · prompt quality
     ↓
 Markdown Prompt Pack / JSON Project
 ```
@@ -118,7 +120,7 @@ Install [Node.js](https://nodejs.org/) `20.19+` or `22.12+`, then download or cl
 | macOS | Double-click `start-xuge.command` | Double-click `stop-xuge.command` |
 | Linux | Run `./start-xuge.sh` | Run `./stop-xuge.sh` |
 
-The shared cross-platform launcher installs dependencies on the first run, checks ports, starts the API and web app in the background, waits for both services to become healthy, and opens the browser. Logs and launcher state stay in the ignored `.runtime/` directory.
+The shared cross-platform launcher installs dependencies on the first run, builds the current version, starts the API and web app in stable non-watching mode, waits for both services to become healthy, and opens the browser. Reading or editing source files cannot restart this launcher-managed API. Logs and launcher state stay in the ignored `.runtime/` directory.
 
 The launchers look for Node.js in `PATH` and in common Windows, Homebrew, nvm, fnm, Volta, asdf, and mise locations. If Node.js is missing, the launcher keeps the error visible and opens the official download page.
 
@@ -141,6 +143,20 @@ npm run app:start
 
 Stop the background app with `npm run app:stop`. Developers can use `npm run dev` to keep both services attached to the terminal. Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The built-in Demo Provider requires no API key; choose **Load sample** to explore the complete workflow. Use the language switch in the top bar to change the interface. Generated story artifacts follow the source text language, so changing the interface never rewrites existing creative work.
 
+### Local project archive
+
+Every completed stage and accepted edit is automatically saved. Open **Projects** in the top bar to resume or delete earlier work after refreshing the browser or restarting Xuge.
+
+Projects are stored only on your machine in `data/archive.json`. Active job checkpoints use `data/jobs.json`. These files, `data/settings.json`, `.env`, runtime logs, and generated output are ignored by Git and must never be committed. Local data is not encrypted; do not use Xuge for sensitive source material on a shared or untrusted computer. Back it up by copying the `data/` directory while Xuge is stopped.
+
+### Long-running job recovery
+
+Xuge writes a local checkpoint after Story Bible, Adaptation Plan, Storyboard, and Audit. Running jobs never expire on a fixed timer. If the browser refreshes, it reconnects to the persisted job. If the app or computer stops unexpectedly, Xuge restores the last completed stage on the next launch and asks you to regenerate only the interrupted stage.
+
+An in-flight model response cannot be reconstructed after the process itself is terminated, and the provider may already have charged for that request. Checkpoints prevent completed stages from being lost; they do not make an individual remote request resumable.
+
+> `npm run dev` intentionally watches source files and restarts the development API after server-side edits. Use the platform launcher or `npm run app:start` for real, long-running generation. Do not use development mode for paid model runs.
+
 ## Connect a model
 
 Open Settings in the app, select **OpenAI Compatible**, and enter:
@@ -160,6 +176,7 @@ Settings are stored in plain text at `data/settings.json` on your machine. The f
 - Editable Story Bible and Adaptation Plan
 - Structured storyboard with individual T2I prompt cards
 - Fidelity, continuity, visual clarity, and prompt-quality audit
+- Local auto-save archive for resuming generated and edited projects
 - Markdown Prompt Pack for human workflows
 - JSON Project for agents, scripts, or downstream tools
 
@@ -176,13 +193,14 @@ Settings are stored in plain text at `data/settings.json` on your machine. The f
 
 ```bash
 npm run dev      # Start API and web app
+npm run serve    # Build and run the stable non-watching app
 npm run build    # Type-check and build the web app
 npm test         # Run pipeline tests
 ```
 
 ```text
 src/              React workspace and export tools
-server/           Pipeline, prompts, providers, jobs, and settings
+server/           Pipeline, prompts, providers, jobs, settings, and local archive
 scripts/          Shared cross-platform launcher core
 *.bat              Windows launchers
 *.command          macOS double-click launchers

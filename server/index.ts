@@ -6,8 +6,9 @@ import { runPipeline } from "./pipeline.js";
 import { OpenAICompatibleProvider } from "./provider.js";
 import { aiEditRequestSchema, pipelineRequestSchema, stageJobRequestSchema } from "./schemas.js";
 import { llmSettingsSchema, loadSettings, saveSettings } from "./settings.js";
-import { createPipelineJob, createStageJob, getJob } from "./jobs.js";
+import { createPipelineJob, createStageJob, getJob, initializeJobs } from "./jobs.js";
 import { normalizeAdaptation, normalizeAudit, normalizePanels, normalizeStoryBible } from "./normalize.js";
+import { deleteArchivedProject, getArchivedProject, listArchivedProjects, saveArchivedProject } from "./archive.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4317);
@@ -61,6 +62,49 @@ app.post("/api/config", async (request, response) => {
   }
 });
 
+app.get("/api/archive", async (_request, response) => {
+  try {
+    response.json({ projects: await listArchivedProjects() });
+  } catch (error) {
+    response.status(500).json({ error: error instanceof Error ? error.message : "读取作品存档失败" });
+  }
+});
+
+app.get("/api/archive/:id", async (request, response) => {
+  try {
+    const project = await getArchivedProject(request.params.id);
+    if (!project) {
+      response.status(404).json({ error: "存档不存在" });
+      return;
+    }
+    response.json(project);
+  } catch (error) {
+    response.status(500).json({ error: error instanceof Error ? error.message : "读取作品存档失败" });
+  }
+});
+
+app.put("/api/archive/:id", async (request, response) => {
+  try {
+    const project = await saveArchivedProject(request.params.id, request.body);
+    response.json(project);
+  } catch (error) {
+    response.status(400).json({ error: error instanceof Error ? error.message : "保存作品存档失败" });
+  }
+});
+
+app.delete("/api/archive/:id", async (request, response) => {
+  try {
+    const deleted = await deleteArchivedProject(request.params.id);
+    if (!deleted) {
+      response.status(404).json({ error: "存档不存在" });
+      return;
+    }
+    response.status(204).end();
+  } catch (error) {
+    response.status(500).json({ error: error instanceof Error ? error.message : "删除作品存档失败" });
+  }
+});
+
 app.post("/api/pipeline/generate", async (request, response) => {
   const parsed = pipelineRequestSchema.safeParse(request.body);
   if (!parsed.success) {
@@ -85,7 +129,7 @@ app.post("/api/pipeline/jobs", async (request, response) => {
   }
 
   try {
-    const job = createPipelineJob(parsed.data, await configuredProvider());
+    const job = await createPipelineJob(parsed.data, await configuredProvider());
     response.status(202).json({ jobId: job.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "创建任务失败";
@@ -107,12 +151,13 @@ app.post("/api/pipeline/stage-jobs", async (request, response) => {
       ...(rawArtifacts.panels !== undefined ? { panels: normalizePanels(rawArtifacts.panels) } : {}),
       ...(rawArtifacts.audit !== undefined ? { audit: normalizeAudit(rawArtifacts.audit) } : {})
     };
-    const job = createStageJob(
+    const job = await createStageJob(
       parsed.data.request,
       await configuredProvider(),
       parsed.data.startStage,
       parsed.data.endStage,
-      artifacts
+      artifacts,
+      parsed.data.projectId
     );
     response.status(202).json({ jobId: job.id });
   } catch (error) {
@@ -144,11 +189,13 @@ app.post("/api/assistant/propose", async (request, response) => {
 app.get("/api/pipeline/jobs/:id", (request, response) => {
   const job = getJob(request.params.id);
   if (!job) {
-    response.status(404).json({ error: "任务不存在或已经过期" });
+    response.status(404).json({ error: "任务记录不存在或已被清理" });
     return;
   }
   response.json(job);
 });
+
+await initializeJobs();
 
 app.listen(port, "127.0.0.1", () => {
   console.log(`Narrative API listening on http://localhost:${port}`);

@@ -1,15 +1,29 @@
 import type { ValidPipelineRequest } from "./schemas.js";
-import type { AdaptationPlan, AiEditProposal, AuditReport, PromptCard, StoryBible } from "../src/types.js";
-import { adaptationPrompt, aiEditPrompt, auditPrompt, storyboardPrompt, storyBiblePrompt } from "./prompts.js";
+import type { AdaptationPlan, AiEditProposal, AuditReport, ColdReadReport, PromptCard, StoryBible } from "../src/types.js";
+import { adaptationPrompt, aiEditPrompt, auditPrompt, clarityRevisionPrompt, coldReadPrompt, storyboardPrompt, storyBiblePrompt } from "./prompts.js";
 import type { LlmSettings } from "./settings.js";
-import { normalizeAdaptation, normalizeAiEditProposal, normalizeAudit, normalizePanels, normalizeStoryBible } from "./normalize.js";
+import { normalizeAdaptation, normalizeAiEditProposal, normalizeAudit, normalizeColdRead, normalizePanels, normalizeStoryBible } from "./normalize.js";
 
 export interface NarrativeProvider {
   readonly name: string;
   buildStoryBible(input: ValidPipelineRequest): Promise<StoryBible>;
   buildAdaptation(input: ValidPipelineRequest, bible: StoryBible): Promise<AdaptationPlan>;
   buildStoryboard(input: ValidPipelineRequest, bible: StoryBible, plan: AdaptationPlan): Promise<PromptCard[]>;
-  audit(input: ValidPipelineRequest, bible: StoryBible, panels: PromptCard[]): Promise<AuditReport>;
+  coldRead(input: ValidPipelineRequest, panels: PromptCard[]): Promise<ColdReadReport>;
+  reviseStoryboardForClarity(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    plan: AdaptationPlan,
+    panels: PromptCard[],
+    coldRead: ColdReadReport
+  ): Promise<PromptCard[]>;
+  audit(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    plan: AdaptationPlan,
+    panels: PromptCard[],
+    coldRead: ColdReadReport
+  ): Promise<AuditReport>;
   proposeEdit(
     input: ValidPipelineRequest,
     target: AiEditProposal["target"],
@@ -76,8 +90,29 @@ export class OpenAICompatibleProvider implements NarrativeProvider {
     return normalizePanels(await this.complete(storyboardPrompt(input, bible, plan)));
   }
 
-  async audit(input: ValidPipelineRequest, bible: StoryBible, panels: PromptCard[]) {
-    return normalizeAudit(await this.complete(auditPrompt(input, bible, panels)));
+  async coldRead(input: ValidPipelineRequest, panels: PromptCard[]) {
+    return normalizeColdRead(await this.complete(coldReadPrompt(input, panels)));
+  }
+
+  async reviseStoryboardForClarity(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    plan: AdaptationPlan,
+    panels: PromptCard[],
+    coldRead: ColdReadReport
+  ) {
+    return normalizePanels(await this.complete(clarityRevisionPrompt(input, bible, plan, panels, coldRead)));
+  }
+
+  async audit(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    plan: AdaptationPlan,
+    panels: PromptCard[],
+    coldRead: ColdReadReport
+  ) {
+    const report = normalizeAudit(await this.complete(auditPrompt(input, bible, plan, panels, coldRead)));
+    return { ...report, coldRead };
   }
 
   async proposeEdit(

@@ -66,15 +66,15 @@ const guideContent = {
       { title: "逐步生成", text: "选择“逐步审阅”，先生成 Story Bible，检查无误后继续。", action: "回到工作台" }
     ],
     beginner: "新手建议",
-    beginnerText: "先用 500–3000 字的单一场景测试。长篇作品更适合按章节或场景分批处理，并保持锁定事实一致。",
+    beginnerText: "先用 500–3000 字的单一场景测试。每个完成阶段都会自动保存；异常退出后可从最后一个 checkpoint 继续。长篇作品更适合按章节或场景分批处理。",
     pipelineTitle: "原文不会直接跳进图像模型",
     pipelineDescription: "四个阶段把一次不可控的生成，拆成四次可以确认的创作决定。",
     input: "小说 · 回忆录 · 流水账 · 故事片段",
     workflow: [
       { title: "Story Bible", caption: "理解，不急着画", detail: "提取人物、地点、时间线、主题、歧义与不可改动的事实。" },
-      { title: "改编方案", caption: "决定怎么讲", detail: "确定取舍、节奏、视觉策略，并标记内容来自原文、推断还是创作。" },
-      { title: "分镜 Prompt", caption: "把故事变成镜头", detail: "为每一格设计叙事功能、动作、情绪、景别、构图和 T2I Prompt。" },
-      { title: "质量审核", caption: "交付前检查", detail: "检查忠实度、连续性、视觉清晰度和 Prompt 的可执行性。" }
+      { title: "改编方案", caption: "先搭叙事主干", detail: "明确主角、目标、阻碍、结果、不可丢失的因果链，再分配场景和格数。" },
+      { title: "分镜 Prompt", caption: "把故事变成连续镜头", detail: "逐格设计承接关系、读者新增信息、时间地点卡、最终文字和自足的 T2I Prompt。" },
+      { title: "质量审核", caption: "先冷读，再评画面", detail: "让看不到原文和制作备注的零背景读者复述故事；理解失败时不能给高分。" }
     ],
     editingTitle: "生成只是草稿，编辑才是工作流",
     editingDescription: "每个产物都是项目状态，不是一段生成后便无法改变的答案。",
@@ -110,7 +110,7 @@ const guideContent = {
     apiTitle: "关键 API",
     objectsTitle: "核心数据对象",
     providerTitle: "Provider 约定",
-    providerText: "文本模型使用 OpenAI Compatible 接口。演示模式不需要 Key；真实模式的设置保存在本机 data/settings.json。",
+    providerText: "文本模型使用 OpenAI Compatible 接口。设置、项目存档与任务 checkpoint 分别保存在 data/settings.json、data/archive.json 和 data/jobs.json；都只留在本机并被 Git 忽略。",
     contracts: [
       { title: "读取现有产物", text: "后续阶段必须把上游结构化对象作为上下文，而不是重新猜测。" },
       { title: "保留稳定 ID", text: "编辑角色、地点和分镜时尽量保留 ID，方便后续追踪和自动化。" },
@@ -155,15 +155,15 @@ const guideContent = {
       { title: "Generate in stages", text: "Choose Guided review, generate the Story Bible first, and continue after checking it.", action: "Back to workspace" }
     ],
     beginner: "First-project tip",
-    beginnerText: "Start with one 500–3,000 word scene. Process longer work by chapter or scene while keeping locked facts consistent.",
+    beginnerText: "Start with one 500–3,000 word scene. Every completed stage is checkpointed, so an interrupted run can continue from the last completed stage. Process longer work by chapter or scene.",
     pipelineTitle: "Your source does not jump straight into an image model",
     pipelineDescription: "Four stages turn one opaque generation into four reviewable creative decisions.",
     input: "Novel · memoir · journal · story scene",
     workflow: [
       { title: "Story Bible", caption: "Understand before drawing", detail: "Extract characters, locations, timeline, themes, ambiguities, and facts that cannot change." },
-      { title: "Adaptation Plan", caption: "Decide how to tell it", detail: "Set pacing, selection, and visual strategy while marking source, inference, and creative additions." },
-      { title: "Storyboard Prompts", caption: "Turn story into shots", detail: "Design purpose, action, emotion, shot size, composition, and a T2I prompt for every panel." },
-      { title: "Quality Audit", caption: "Check before delivery", detail: "Review fidelity, continuity, visual clarity, and prompt executability." }
+      { title: "Adaptation Plan", caption: "Build the narrative spine first", detail: "Define protagonist, goal, obstacle, resolution, indispensable causal chain, then allocate scenes and panels." },
+      { title: "Storyboard Prompts", caption: "Turn story into continuous shots", detail: "Design handoffs, reader learning, time/place cards, final text, and a self-contained T2I prompt for every panel." },
+      { title: "Quality Audit", caption: "Cold-read before visual scoring", detail: "A zero-context reader who cannot see the source or production notes must be able to retell the story." }
     ],
     editingTitle: "Generation creates a draft; editing creates the workflow",
     editingDescription: "Every artifact is editable project state, not an answer frozen after generation.",
@@ -199,7 +199,7 @@ const guideContent = {
     apiTitle: "Key APIs",
     objectsTitle: "Core data objects",
     providerTitle: "Provider contract",
-    providerText: "Text models use an OpenAI-compatible interface. Demo mode needs no key; real-model settings are stored locally in data/settings.json.",
+    providerText: "Text models use an OpenAI-compatible interface. Settings, project archives, and job checkpoints live in data/settings.json, data/archive.json, and data/jobs.json; all stay local and are ignored by Git.",
     contracts: [
       { title: "Read existing artifacts", text: "Every later stage must use upstream structured objects as context instead of guessing again." },
       { title: "Preserve stable IDs", text: "Keep character, location, and panel IDs when editing so later tracking and automation remain reliable." },

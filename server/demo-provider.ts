@@ -1,4 +1,4 @@
-import type { AdaptationPlan, AiEditProposal, AuditReport, Character, PromptCard, StoryBible } from "../src/types.js";
+import type { AdaptationPlan, AiEditProposal, AuditReport, Character, ColdReadReport, PromptCard, StoryBible } from "../src/types.js";
 import type { ValidPipelineRequest } from "./schemas.js";
 import type { NarrativeProvider } from "./provider.js";
 
@@ -8,6 +8,47 @@ const splitSentences = (text: string) => text
   .filter(Boolean);
 
 const cleanExcerpt = (value: string, max = 72) => value.length > max ? `${value.slice(0, max)}…` : value;
+
+function narrativeImportance(sentence: string) {
+  let value = 0;
+  if (/[“”"][^“”"]+[“”"]/.test(sentence)) value += 45;
+  if (/五千万|取卵|叫我|称呼|昵称|条件|让我想想|会留下来吗|如果.+留下|没有人再见|再也没见|以后没见|what if|nickname|call me|never saw|never seen|condition/i.test(sentence)) value += 140;
+  if (/因为|所以|但是|却|拒绝|答应|决定|发现|终于|离开|失踪|留下|结果|于是|therefore|because|but|refused|promised|decided|discovered|finally|left|disappeared/i.test(sentence)) value += 80;
+  if (/父亲|母亲|恋人|朋友|丈夫|妻子|father|mother|partner|friend|husband|wife/i.test(sentence)) value += 45;
+  if (/\d|年后|年前|当天|第二天|后来|之后|before|after|later|next day/i.test(sentence)) value += 35;
+  return value;
+}
+
+function selectNarrativeSentences(sentences: string[], count: number) {
+  if (sentences.length <= count) {
+    return Array.from({ length: count }, (_, index) => {
+      const sourceIndex = count === 1 ? 0 : Math.round(index * (sentences.length - 1) / (count - 1));
+      return sentences[Math.max(0, sourceIndex)] || "";
+    });
+  }
+
+  const selected = new Set<number>([0, sentences.length - 1]);
+  const important = sentences
+    .map((sentence, index) => ({ index, score: narrativeImportance(sentence) }))
+    .filter((item) => item.index > 0 && item.index < sentences.length - 1 && item.score >= 80)
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+  for (const item of important) {
+    if (selected.size >= count) break;
+    selected.add(item.index);
+  }
+  while (selected.size < count) {
+    const candidates = sentences
+      .map((sentence, index) => ({ index, score: narrativeImportance(sentence) }))
+      .filter((item) => !selected.has(item.index))
+      .map((item) => ({
+        ...item,
+        distance: Math.min(...[...selected].map((chosen) => Math.abs(chosen - item.index)))
+      }))
+      .sort((left, right) => right.distance - left.distance || right.score - left.score || left.index - right.index);
+    selected.add(candidates[0].index);
+  }
+  return [...selected].sort((left, right) => left - right).map((index) => sentences[index]);
+}
 
 const prefersEnglish = (text: string) => {
   const latin = text.match(/[A-Za-z]/g)?.length || 0;
@@ -80,7 +121,7 @@ export class DemoProvider implements NarrativeProvider {
         description: english ? "Build spatial relationships from the source; add unspecified details during visual development." : "依据原文建立空间关系，未明确的细节需要在视觉设定阶段补充。",
         fixedElements: [english ? "Keep entrances, major furniture, and landmark objects spatially consistent" : "保持出入口、主要家具与标志性物件的位置连续"]
       }],
-      timeline: sentences.slice(0, Math.min(sentences.length, 8)).map((sentence, index) => ({
+      timeline: sentences.slice(0, Math.min(sentences.length, 200)).map((sentence, index) => ({
         id: `event_${index + 1}`,
         summary: cleanExcerpt(sentence, 56),
         sourceExcerpt: sentence,
@@ -104,7 +145,49 @@ export class DemoProvider implements NarrativeProvider {
       adapted: "保留核心事件，以进入、发现、反应和余韵组织漫画节奏。",
       artistic: "保留核心事实，通过倒影、空镜和主观镜头强化记忆主题。"
     }[input.mode];
+    const firstEvent = bible.timeline[0]?.summary || bible.logline;
+    const middleEvent = bible.timeline[Math.floor(bible.timeline.length / 2)]?.summary || firstEvent;
+    const finalEvent = bible.timeline.at(-1)?.summary || middleEvent;
+    const indispensableEvents = bible.timeline
+      .map((event, index) => ({ event, index, score: narrativeImportance(event.sourceExcerpt) }))
+      .filter((item) => item.score >= 80)
+      .sort((left, right) => right.score - left.score || left.index - right.index)
+      .slice(0, Math.max(3, Math.min(12, input.panelCount - 2)))
+      .sort((left, right) => left.index - right.index)
+      .map((item) => item.event.summary);
+    const sequenceCount = Math.min(3, input.panelCount);
+    const baseBudget = Math.floor(input.panelCount / sequenceCount);
+    const remainder = input.panelCount % sequenceCount;
+    const sequenceNames = english ? ["Setup", "Development", "Resolution"] : ["建立处境", "推进冲突", "完成结果"];
+    const sequenceEvents = [firstEvent, middleEvent, finalEvent];
+    const sequences = Array.from({ length: sequenceCount }, (_, index) => ({
+      id: `sequence_${index + 1}`,
+      title: sequenceNames[index],
+      purpose: english
+        ? ["Introduce the protagonist, time, place, and central situation", "Show how actions and discoveries change the situation", "Resolve the event and make the ending understandable"][index]
+        : ["交代主角、时间、地点与核心处境", "通过行动与发现推进因果", "完成事件并让结局含义清楚"][index],
+      time: english ? (index === 0 ? "Story opening" : "Continuous from the previous sequence") : (index === 0 ? "故事开始时" : "承接上一段"),
+      location: bible.locations[0]?.name || (english ? "Primary setting" : "主要场景"),
+      transitionIn: index === 0 ? "" : (english ? "Because of the previous discovery, the story moves to the next consequence." : "由于上一段的发现，故事进入下一步结果。"),
+      panelBudget: baseBudget + (index < remainder ? 1 : 0),
+      requiredInformation: [sequenceEvents[index]]
+    }));
     return {
+      narrativeSpine: {
+        protagonist: bible.characters[0]?.name || (english ? "The protagonist" : "主角"),
+        setup: firstEvent,
+        goal: english ? "Understand and respond to the central event in the source" : "理解并回应原文中的核心事件",
+        obstacle: middleEvent,
+        stakes: english ? "The protagonist must act or remain trapped in the unresolved situation" : "主角必须采取行动，否则核心处境将继续悬而未决",
+        incitingIncident: firstEvent,
+        turningPoint: middleEvent,
+        resolution: finalEvent,
+        centralQuestion: english ? "What will the protagonist do after confronting the central discovery?" : "主角面对核心发现后会如何行动？",
+        causalChain: bible.timeline.slice(1).map((event, index) => english
+          ? `After ${bible.timeline[index].summary}, ${event.summary}`
+          : `“${bible.timeline[index].summary}”之后，“${event.summary}”`),
+        indispensableFacts: [...new Set([firstEvent, ...indispensableEvents, middleEvent, finalEvent].filter(Boolean))]
+      },
       approach: modeText,
       pacing: english
         ? `${input.panelCount}-panel structure: establish the setting, advance events through the middle, and preserve emotional resonance at the end.`
@@ -112,6 +195,10 @@ export class DemoProvider implements NarrativeProvider {
       visualStrategy: english
         ? `${input.style}; use wide shots to establish space, medium and close shots for action, and close-ups for emotion and key objects.`
         : `${input.style}；使用远景建立空间、中近景表现动作、特写呈现情绪与关键物件。`,
+      chronologyStrategy: english
+        ? "Use readable chronological order; mark every scene change with a visible time, place, or transition caption."
+        : "采用清楚的顺叙；每次场景切换都用读者可见的时间、地点或转场字幕标记。",
+      sequences,
       decisions: bible.timeline.slice(0, input.panelCount).map((event, index) => ({
         id: `decision_${index + 1}`,
         source: event.sourceExcerpt,
@@ -124,8 +211,9 @@ export class DemoProvider implements NarrativeProvider {
     };
   }
 
-  async buildStoryboard(input: ValidPipelineRequest, bible: StoryBible): Promise<PromptCard[]> {
+  async buildStoryboard(input: ValidPipelineRequest, bible: StoryBible, plan: AdaptationPlan): Promise<PromptCard[]> {
     const sentences = splitSentences(input.sourceText);
+    const selectedSentences = selectNarrativeSentences(sentences, input.panelCount);
     const english = prefersEnglish(input.sourceText);
     const shotCycle = english ? [
       ["Wide shot", "Eye level"], ["Medium shot", "Rear three-quarter"], ["Close shot", "Eye level"], ["Close-up", "Slight high angle"],
@@ -135,14 +223,14 @@ export class DemoProvider implements NarrativeProvider {
       ["中远景", "低机位"], ["近景", "过肩视角"]
     ];
     const characters = bible.characters.map((item) => item.name);
+    const sequenceSlots = plan.sequences.flatMap((sequence) => Array.from({ length: sequence.panelBudget }, () => sequence));
     const absentCharacters = new Set(input.lockedFacts.flatMap((fact) => {
       if (english) return characters.filter((name) => fact.includes(name) && /does not appear|is absent/i.test(fact));
       const match = fact.match(/^(.+?)没有(?:在现实场景中出现|出现在现实场景中)/);
       return match ? [match[1]] : [];
     }));
     return Array.from({ length: input.panelCount }, (_, index) => {
-      const sourceIndex = input.panelCount === 1 ? 0 : Math.round(index * (sentences.length - 1) / (input.panelCount - 1));
-      const source = (sentences[Math.max(0, sourceIndex)] || input.sourceText).replace(/^[”’]+/, "");
+      const source = (selectedSentences[index] || input.sourceText).replace(/^[”’]+/, "");
       const [shotSize, cameraAngle] = shotCycle[index % shotCycle.length];
       const isFirst = index === 0;
       const isLast = index === input.panelCount - 1;
@@ -169,11 +257,33 @@ export class DemoProvider implements NarrativeProvider {
       const purpose = english
         ? (isFirst ? "Establish time, place, and the character's situation" : isLast ? "Complete the event and leave emotional resonance" : "Advance the action and reveal the character's reaction")
         : (isFirst ? "建立时间、地点与人物处境" : isLast ? "完成事件并留下情绪余韵" : "推进动作并呈现人物反应");
+      const sequence = sequenceSlots[index] || plan.sequences.at(-1) || {
+        id: "sequence_1",
+        title: english ? "Main sequence" : "主线",
+        time: english ? "Story time" : "故事时间",
+        location,
+        transitionIn: ""
+      };
+      const previousSequence = index > 0 ? sequenceSlots[index - 1] : undefined;
+      const sequenceBoundary = isFirst || previousSequence?.id !== sequence.id;
+      const characterDesign = bible.characters
+        .filter((character) => panelCharacters.includes(character.name))
+        .map((character) => `${character.name}: ${character.appearance.join(", ")}`)
+        .join("; ");
       return {
         id: `panel_${String(index + 1).padStart(3, "0")}`,
         order: index + 1,
+        sequenceId: sequence.id,
+        sequenceTitle: sequence.title,
         sourceExcerpt: source,
         storyPurpose: purpose,
+        causeFromPrevious: isFirst
+          ? ""
+          : (english ? "The previous action or discovery directly leads to this response." : "上一格的行动或发现直接引出本格的反应。"),
+        readerLearns: cleanExcerpt(source.replace(/[“”]/g, ""), 80),
+        timeCard: sequenceBoundary ? sequence.time : "",
+        locationCard: sequenceBoundary ? (sequence.location || location) : "",
+        transitionCaption: !isFirst && sequenceBoundary ? sequence.transitionIn : "",
         characters: panelCharacters,
         location,
         action,
@@ -196,21 +306,130 @@ export class DemoProvider implements NarrativeProvider {
           "服装、时间与天气承接上一格"
         ],
         prompt: english
-          ? `${input.style}. ${shotSize}, ${cameraAngle}. ${panelCharacters.join(" and ") || "environment-only shot"}, ${action}. ${isFirst ? "Place the character near the frame edge and establish a clear spatial relationship with the environment" : "Show a clear action with layered depth between the subject and key object"}. ${creative ? "Use glass reflections and negative space to overlap memory with the present." : "Express emotion through posture, gaze, and environmental detail."} Consistent character design, continuous clothing and setting, soft environmental light, narrative composition, no text.`
-          : `${input.style}。${shotSize}，${cameraAngle}。${panelCharacters.join("与") || "环境空镜"}，${action}。${isFirst ? "人物位于画面边缘，环境建立明确空间关系" : "人物动作清晰，主体与关键物件形成前后景"}。${creative ? "通过玻璃倒影和留白表现记忆与现实的重叠。" : "情绪通过姿态、视线和环境细节表达。"}统一角色设计，连续的服装与场景，柔和环境光，叙事性构图，无文字。`,
+          ? `${input.style}. ${shotSize}, ${cameraAngle}. ${characterDesign || "environment-only shot"}. ${action}. ${isFirst ? "Place the character near the frame edge and establish a clear spatial relationship with the environment" : "Show a clear action with layered depth between the subject and key object"}. ${creative ? "Use restrained reflections only after the literal action remains unmistakable." : "Express emotion through posture, gaze, and environmental detail."} Repeat the stated character design exactly, preserve clothing and setting continuity, soft environmental light, narrative composition, no text, no letters, no speech bubbles.`
+          : `${input.style}。${shotSize}，${cameraAngle}。${characterDesign || "环境空镜"}。${action}。${isFirst ? "人物位于画面边缘，环境建立明确空间关系" : "人物动作清晰，主体与关键物件形成前后景"}。${creative ? "只在真实动作仍然一目了然的前提下使用克制的倒影。" : "情绪通过姿态、视线和环境细节表达。"}严格重复上述人物设计，保持服装与场景连续，柔和环境光，叙事性构图，无文字、无字母、无对白框。`,
         negativePrompt: english
           ? "text, watermark, signature, extra people, duplicate limbs, malformed fingers, character drift, clothing changes, contradictory scene structure, overcrowded composition"
           : "文字，水印，签名，多余人物，重复肢体，错误手指，人物外观漂移，服装变化，场景结构矛盾，过度拥挤的构图",
-        narration: isFirst || isLast ? cleanExcerpt(source.replace(/[“”]/g, ""), 42) : "",
+        narration: cleanExcerpt(source.replace(/[“”]/g, ""), 80),
         dialogue: /[“”]/.test(source) ? (source.match(/“([^”]+)”/)?.[1] || "") : "",
         provenance: creative ? ["SOURCE", "CREATIVE"] : ["SOURCE", "INFERENCE"]
       };
     });
   }
 
-  async audit(input: ValidPipelineRequest, bible: StoryBible, panels: PromptCard[]): Promise<AuditReport> {
+  async coldRead(input: ValidPipelineRequest, panels: PromptCard[]): Promise<ColdReadReport> {
+    const english = prefersEnglish(input.sourceText);
+    const missingLinks: string[] = [];
+    const unclearPoints: string[] = [];
+    const readerText = panels.map((panel) => [panel.timeCard, panel.locationCard, panel.transitionCaption, panel.narration, panel.dialogue].join(" ")).join(" ");
+    const productionCharacters = [...new Set(panels.flatMap((panel) => panel.characters))];
+    const understoodCharacters = productionCharacters.filter((character) => readerText.includes(character));
+    const missingCause = panels.filter((panel, index) => index > 0 && !panel.causeFromPrevious);
+    const missingLearning = panels.filter((panel) => !panel.readerLearns);
+    const unmarkedTransitions = panels.filter((panel, index) => (
+      index > 0
+      && panel.sequenceId !== panels[index - 1].sequenceId
+      && !panel.timeCard
+      && !panel.locationCard
+      && !panel.transitionCaption
+    ));
+    if (panels.length !== input.panelCount) {
+      missingLinks.push(english ? "The requested panel sequence is incomplete." : "目标分镜序列不完整。");
+    }
+    if (missingCause.length) {
+      missingLinks.push(english ? "Some panels lack a causal bridge from the previous action." : "部分画格缺少与上一行动的因果桥梁。");
+    }
+    if (unmarkedTransitions.length) {
+      missingLinks.push(english ? "Some scene changes have no visible transition." : "部分场景变化没有可见转场。");
+    }
+    if (missingLearning.length) {
+      unclearPoints.push(english ? "Some panels add no identifiable story information." : "部分画格没有增加可识别的故事信息。");
+    }
+    if (!panels[0]?.timeCard || !panels[0]?.locationCard) {
+      unclearPoints.push(english ? "The opening does not explicitly establish both time and place." : "开场没有同时明确时间与地点。");
+    }
+    if (productionCharacters.length > 0 && understoodCharacters.length === 0) {
+      unclearPoints.push(english ? "The visible text never identifies the depicted characters." : "读者可见文字从未交代画面人物身份。" );
+    }
+    const passed = missingLinks.length === 0 && unclearPoints.length === 0;
+    const score = Math.max(0, 94 - missingLinks.length * 24 - unclearPoints.length * 12);
+    return {
+      passed,
+      score,
+      retelling: [...new Set(panels.map((panel) => (
+        [panel.transitionCaption, panel.narration, panel.dialogue].filter(Boolean).join(english ? " " : "；") || panel.action
+      )).filter(Boolean))].join(english ? " Then " : "随后，"),
+      understoodCharacters,
+      understoodTimeline: panels
+        .filter((panel) => panel.timeCard || panel.locationCard || panel.transitionCaption)
+        .map((panel) => [panel.timeCard, panel.locationCard, panel.transitionCaption].filter(Boolean).join(english ? " · " : " · ")),
+      unclearPoints,
+      missingLinks
+    };
+  }
+
+  async reviseStoryboardForClarity(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    _plan: AdaptationPlan,
+    panels: PromptCard[],
+    _coldRead: ColdReadReport
+  ): Promise<PromptCard[]> {
+    const english = prefersEnglish(input.sourceText);
+    return panels.map((panel, index) => {
+      const previous = panels[index - 1];
+      const boundary = index > 0 && previous.sequenceId !== panel.sequenceId;
+      return {
+        ...panel,
+        causeFromPrevious: index === 0
+          ? ""
+          : (panel.causeFromPrevious || (english ? "The previous action directly causes this response." : "上一格的行动直接引出本格反应。")),
+        readerLearns: panel.readerLearns || panel.action,
+        timeCard: index === 0
+          ? (panel.timeCard || (english ? "Story opening" : "故事开始时"))
+          : panel.timeCard,
+        locationCard: index === 0
+          ? (panel.locationCard || panel.location || bible.locations[0]?.name || (english ? "Primary setting" : "主要场景"))
+          : panel.locationCard,
+        transitionCaption: boundary
+          ? (panel.transitionCaption || (english ? "The previous event leads into the next scene." : "上一事件推动故事进入下一场。"))
+          : panel.transitionCaption,
+        narration: panel.narration || panel.readerLearns || panel.action
+      };
+    });
+  }
+
+  async audit(
+    input: ValidPipelineRequest,
+    bible: StoryBible,
+    plan: AdaptationPlan,
+    panels: PromptCard[],
+    coldRead: ColdReadReport
+  ): Promise<AuditReport> {
     const english = prefersEnglish(input.sourceText);
     const issues = [];
+    const compact = (value: string) => value.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+    const visibleStory = compact(panels.map((panel) => [
+      panel.action,
+      panel.timeCard,
+      panel.locationCard,
+      panel.transitionCaption,
+      panel.narration,
+      panel.dialogue
+    ].join(" ")).join(" "));
+    const uncoveredFacts = plan.narrativeSpine.indispensableFacts.filter((fact) => {
+      const normalized = compact(fact);
+      const fingerprint = normalized.slice(0, Math.min(14, normalized.length));
+      return fingerprint.length > 0 && !visibleStory.includes(fingerprint);
+    });
+    if (uncoveredFacts.length) {
+      issues.push({
+        id: "audit_story_coverage", severity: "P0" as const, target: english ? "Reader-visible story" : "读者可见故事",
+        message: english ? "The storyboard omits indispensable story facts." : `分镜遗漏了不可丢失的故事事实：${uncoveredFacts.join("；")}`,
+        suggestion: english ? "Replace decorative panels with the missing premise, causal turn, or resolution." : "用缺失的前提、因果转折或结局替换只承担装饰作用的画格。"
+      });
+    }
     if (bible.ambiguities.length) {
       issues.push({
         id: "audit_1", severity: "P1" as const, target: "Story Bible",
@@ -226,12 +445,23 @@ export class DemoProvider implements NarrativeProvider {
       });
     }
     return {
-      score: issues.length ? 86 : 94,
+      score: uncoveredFacts.length ? 55 : issues.length ? 86 : 94,
       summary: english
         ? "The storyboard covers the major events and the prompt structure is complete. Confirm unspecified character visuals before final image generation."
         : "分镜已覆盖主要事件，Prompt 结构完整；正式出图前建议确认未明确的人物视觉设定。",
+      coldRead,
+      autoRevisionApplied: false,
       issues,
-      checks: { faithfulness: 92, continuity: 84, visualClarity: 88, promptQuality: 89 }
+      checks: {
+        narrativeComprehension: coldRead.score,
+        causalCompleteness: coldRead.passed ? 92 : 52,
+        chronologyLegibility: coldRead.passed ? 92 : 55,
+        characterClarity: coldRead.understoodCharacters.length ? 88 : 45,
+        faithfulness: uncoveredFacts.length ? 52 : 92,
+        continuity: 88,
+        visualClarity: 88,
+        promptQuality: panels.every((panel) => panel.prompt) ? 91 : 45
+      }
     };
   }
 

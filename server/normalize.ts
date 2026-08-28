@@ -4,6 +4,7 @@ import type {
   AuditIssue,
   AuditReport,
   Character,
+  ColdReadReport,
   Location,
   PromptCard,
   StoryBible,
@@ -34,6 +35,10 @@ function textList(value: unknown): string[] {
   return list(value).map((item) => text(item)).filter(Boolean);
 }
 
+function concreteTextList(value: unknown): string[] {
+  return textList(value).filter((item) => !/^(?:true|false|yes|no|是|否)$/i.test(item));
+}
+
 function number(value: unknown, fallback = 0): number {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -41,6 +46,15 @@ function number(value: unknown, fallback = 0): number {
 
 function score(value: unknown, fallback = 0): number {
   return Math.round(Math.min(100, Math.max(0, number(value, fallback))));
+}
+
+function boolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "true") return true;
+    if (value.toLowerCase() === "false") return false;
+  }
+  return fallback;
 }
 
 function id(value: unknown, prefix: string, index: number): string {
@@ -95,10 +109,38 @@ export function normalizeStoryBible(value: unknown): StoryBible {
 
 export function normalizeAdaptation(value: unknown): AdaptationPlan {
   const source = record(value);
+  const spine = record(source.narrativeSpine);
   return {
+    narrativeSpine: {
+      protagonist: text(spine.protagonist),
+      setup: text(spine.setup, text(source.approach)),
+      goal: text(spine.goal),
+      obstacle: text(spine.obstacle),
+      stakes: text(spine.stakes),
+      incitingIncident: text(spine.incitingIncident),
+      turningPoint: text(spine.turningPoint),
+      resolution: text(spine.resolution),
+      centralQuestion: text(spine.centralQuestion),
+      causalChain: textList(spine.causalChain),
+      indispensableFacts: textList(spine.indispensableFacts)
+    },
     approach: text(source.approach, "忠于原文的视觉改编"),
     pacing: text(source.pacing),
     visualStrategy: text(source.visualStrategy),
+    chronologyStrategy: text(source.chronologyStrategy, "按读者可识别的时间顺序推进"),
+    sequences: list(source.sequences).map((item, index) => {
+      const sequence = record(item);
+      return {
+        id: id(sequence.id, "sequence", index),
+        title: text(sequence.title, `段落 ${index + 1}`),
+        purpose: text(sequence.purpose),
+        time: text(sequence.time),
+        location: text(sequence.location),
+        transitionIn: text(sequence.transitionIn),
+        panelBudget: Math.max(0, Math.round(number(sequence.panelBudget))),
+        requiredInformation: textList(sequence.requiredInformation)
+      };
+    }),
     decisions: list(source.decisions).map((item, index) => {
       const decision = record(item);
       return {
@@ -119,8 +161,15 @@ export function normalizePanels(value: unknown): PromptCard[] {
     return {
       id: id(panel.id, "panel", index),
       order: number(panel.order, index + 1),
+      sequenceId: text(panel.sequenceId, "sequence-1"),
+      sequenceTitle: text(panel.sequenceTitle, "Main sequence"),
       sourceExcerpt: text(panel.sourceExcerpt),
       storyPurpose: text(panel.storyPurpose),
+      causeFromPrevious: text(panel.causeFromPrevious),
+      readerLearns: text(panel.readerLearns, text(panel.storyPurpose)),
+      timeCard: text(panel.timeCard),
+      locationCard: text(panel.locationCard),
+      transitionCaption: text(panel.transitionCaption),
       characters: textList(panel.characters),
       location: text(panel.location),
       action: text(panel.action),
@@ -139,12 +188,27 @@ export function normalizePanels(value: unknown): PromptCard[] {
   }).sort((left, right) => left.order - right.order);
 }
 
+export function normalizeColdRead(value: unknown): ColdReadReport {
+  const source = record(value);
+  return {
+    passed: boolean(source.passed),
+    score: score(source.score),
+    retelling: text(source.retelling),
+    understoodCharacters: concreteTextList(source.understoodCharacters),
+    understoodTimeline: concreteTextList(source.understoodTimeline),
+    unclearPoints: textList(source.unclearPoints),
+    missingLinks: textList(source.missingLinks)
+  };
+}
+
 export function normalizeAudit(value: unknown): AuditReport {
   const source = record(value);
   const checks = record(source.checks);
   return {
     score: score(source.score),
     summary: text(source.summary, "审核已完成"),
+    coldRead: normalizeColdRead(source.coldRead),
+    autoRevisionApplied: boolean(source.autoRevisionApplied),
     issues: list(source.issues).map((item, index): AuditIssue => {
       const issue = record(item);
       const rawSeverity = text(issue.severity).toUpperCase();
@@ -158,6 +222,10 @@ export function normalizeAudit(value: unknown): AuditReport {
       };
     }),
     checks: {
+      narrativeComprehension: score(checks.narrativeComprehension),
+      causalCompleteness: score(checks.causalCompleteness, score(checks.continuity)),
+      chronologyLegibility: score(checks.chronologyLegibility, score(checks.continuity)),
+      characterClarity: score(checks.characterClarity, score(checks.visualClarity)),
       faithfulness: score(checks.faithfulness),
       continuity: score(checks.continuity),
       visualClarity: score(checks.visualClarity),

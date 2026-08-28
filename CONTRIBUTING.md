@@ -9,6 +9,8 @@ npm install
 npm run dev
 ```
 
+`npm run dev` 会监听服务端源码并自动重启 API，只适合开发。真实或付费模型的长任务请用 `npm run app:start`；涉及任务恢复的改动必须验证 `data/jobs.json` checkpoint。
+
 提交前运行：
 
 ```bash
